@@ -86,7 +86,7 @@ typedef struct Neuron_t
   NeuronType type;
   float prevState;
   float state;
-  uint8_t :inputs;
+  uint8_t inputs;
   uint8_t inputsVisited;
   uint8_t outputs;
   uint8_t outputsVisited;
