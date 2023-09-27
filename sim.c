@@ -6,9 +6,11 @@
 #include <time.h>
 #include <math.h>
 
-#define IN_BASE (1 << 15)
-#define OUT_BASE (1 << 14)
-#define INTERNAL_BASE (1 << 13)
+#define IN_BASE 0x8000
+#define OUT_BASE 0x4000
+#define INTERNAL_BASE 0x200
+
+#define INTERNAL_MAX 1
 
 typedef enum
 {
@@ -17,6 +19,10 @@ typedef enum
   IN_MAX
 } InputType;
 
+char *InputTypeStrings[IN_MAX] = {
+    "WORLD_X",
+    "WORLD_Y"};
+
 typedef enum
 {
   OUT_MOVE_X,
@@ -24,6 +30,11 @@ typedef enum
   OUT_MOVE_RANDOM,
   OUT_MAX
 } OutputType;
+
+char *OutputTypeStrings[OUT_MAX] = {
+    "MOVE_X",
+    "MOVE_Y",
+    "MOVE_RANDOM"};
 
 typedef struct
 {
@@ -62,12 +73,20 @@ typedef struct
   bool visited;
 } NeuralConnection;
 
+typedef enum
+{
+  NEURON_INPUT,
+  NEURON_INTERNAL,
+  NEURON_OUTPUT
+} NeuronType;
+
 typedef struct Neuron_t
 {
   uint16_t id;
+  NeuronType type;
   float prevState;
   float state;
-  uint8_t inputs;
+  uint8_t :inputs;
   uint8_t inputsVisited;
   uint8_t outputs;
   uint8_t outputsVisited;
@@ -99,11 +118,37 @@ typedef struct
   Size size;
 } Simulation;
 
+Gene intToGene(uint32_t n)
+{
+  return (Gene){
+      .sourceIsInput = (bool)((n >> 31) & 0x01),
+      .sourceId = (uint8_t)((n >> 24) & 0x7f),
+      .sinkIsOutput = (bool)((n >> 23) & 0x01),
+      .sinkId = (uint8_t)((n >> 16) & 0x7f),
+      .weight = (uint16_t)(n & 0xffff),
+  };
+}
+
 uint32_t geneToInt(Gene *gene)
 {
   return (uint32_t)(((gene->sourceIsInput << 7) | gene->sourceId) << 24) |
          (uint32_t)(((gene->sinkIsOutput << 7) | gene->sinkId) << 16) |
          (uint32_t)gene->weight;
+}
+
+void testGeneCreation()
+{
+  uint32_t geneInt = rand() % UINT32_MAX;
+
+  Gene gene = intToGene(geneInt);
+
+  uint32_t newGeneInt = geneToInt(&gene);
+
+  if (geneInt != newGeneInt)
+  {
+    fprintf(stderr, "ERROR: %08X /= %08X\n", geneInt, newGeneInt);
+    exit(1);
+  }
 }
 
 char *geneToString(Gene *gene)
@@ -157,20 +202,24 @@ void organismBuildNeuralNet(Organism *org)
     uint16_t sourceId = gene->sourceId;
     if (gene->sourceIsInput)
     {
+      sourceId %= IN_MAX;
       sourceId |= IN_BASE;
     }
     else
     {
+      sourceId %= INTERNAL_MAX;
       sourceId |= INTERNAL_BASE;
     }
 
     uint16_t sinkId = gene->sinkId;
     if (gene->sinkIsOutput)
     {
+      sinkId %= OUT_MAX;
       sinkId |= OUT_BASE;
     }
     else
     {
+      sinkId %= INTERNAL_MAX;
       sinkId |= INTERNAL_BASE;
     }
 
@@ -179,6 +228,7 @@ void organismBuildNeuralNet(Organism *org)
     {
       source = &neurons[usedNeurons++];
       source->id = sourceId;
+      source->type = gene->sourceIsInput ? NEURON_INPUT : NEURON_INTERNAL;
       source->state = 0.0f;
       source->inputs = 0;
       source->outputs = 1;
@@ -195,6 +245,7 @@ void organismBuildNeuralNet(Organism *org)
     {
       sink = &neurons[usedNeurons++];
       sink->id = sinkId;
+      sink->type = gene->sinkIsOutput ? NEURON_OUTPUT : NEURON_INTERNAL;
       sink->state = 0.0f;
       sink->inputs = 1;
       sink->outputs = 0;
@@ -206,8 +257,8 @@ void organismBuildNeuralNet(Organism *org)
       sink->inputs++;
     }
 
-    printf("Source for neuron %d has id %d\n", i, source->id);
-    printf("Sink for neuron %d has id %d\n", i, sink->id);
+    // printf("Source for neuron %d has id %d\n", i, source->id);
+    // printf("Sink for neuron %d has id %d\n", i, sink->id);
 
     NeuralConnection *conn = &connections[usedConnections++];
     conn->sourceId = source->id;
@@ -224,12 +275,22 @@ void organismBuildNeuralNet(Organism *org)
   org->net.neurons = calloc(usedNeurons, sizeof(Neuron));
   memcpy(org->net.neurons, neurons, usedNeurons * sizeof(Neuron));
 
-  Neuron *source = findNeuronById(org->net.neurons, org->net.neuronCount, 32768);
-  printf("Neuron 0 has %d inputs and %d outputs\n", source->inputs, source->outputs);
-  printf("Made net with %d connections between %d neurons\n", org->net.connectionCount, org->net.neuronCount);
+  // Neuron *source = findNeuronById(org->net.neurons, org->net.neuronCount, 32768);
+  // printf("Neuron 0 has %d inputs and %d outputs\n", source->inputs, source->outputs);
+  // printf("Made net with %d connections between %d neurons\n", org->net.connectionCount, org->net.neuronCount);
 
-  Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount, 16384);
-  printf("Net sink is %p, source is %p\n", sink, source);
+  // Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount, 16384);
+  // printf("Net sink is %p, source is %p\n", sink, source);
+}
+
+void organismDestroyNeuralNet(Organism *org)
+{
+  free(org->net.connections);
+  free(org->net.neurons);
+  org->net.connections = NULL;
+  org->net.neurons = NULL;
+  org->net.connectionCount = 0;
+  org->net.neuronCount = 0;
 }
 
 void organismRunStep(Organism *org)
@@ -251,7 +312,7 @@ void organismRunStep(Organism *org)
   for (int i = 0; i < org->net.neuronCount; i++)
   {
     Neuron *input = &org->net.neurons[i];
-    if (!(input->id & IN_BASE))
+    if (input->type != NEURON_INPUT)
     {
       continue;
     }
@@ -266,7 +327,7 @@ void organismRunStep(Organism *org)
       break;
     }
 
-    printf("Excited neuron #%d to level %.2f\n", input->id, input->state);
+    // printf("Excited neuron #%d to level %.2f\n", input->id, input->state);
   }
 
   // compute
@@ -306,13 +367,13 @@ void organismRunStep(Organism *org)
       sink->inputsVisited++;
       source->outputsVisited++;
       connection->visited = true;
-      printf("Visited connection between neuron #%d and neuron #%d\n", source->id, sink->id);
+      // printf("Visited connection between neuron #%d and neuron #%d\n", source->id, sink->id);
 
       // normalise the sink state if it has been completed between -1.0 and 1.0.
       if (sink->inputsVisited == sink->inputs)
       {
         sink->state = tanhf(sink->state / (float)sink->inputs);
-        printf("Normalised neuron #%d state to %.2f\n", sink->id, sink->state);
+        // printf("Normalised neuron #%d state to %.2f\n", sink->id, sink->state);
       }
 
       visits++;
@@ -325,13 +386,13 @@ void organismRunStep(Organism *org)
   {
     Neuron *output = &org->net.neurons[i];
 
-    if (!(output->id & OUT_BASE))
+    if (output->type != NEURON_OUTPUT)
     {
       // printf("Neuron #%d is not an output\n", output->id);
       continue;
     }
 
-    printf("Output neuron #%d has level %.2f\n", output->id, output->state);
+    // printf("Output neuron #%d has level %.2f\n", output->id, output->state);
 
     switch (output->id & 0xff)
     {
@@ -384,39 +445,52 @@ void organismRunStep(Organism *org)
   }
 }
 
-int main(int argc, char *argv[])
+Genome makeRandomGenome(uint8_t numGenes)
 {
-  time_t t = time(NULL);
-  srandom(t);
+  Genome genome = {
+      .count = numGenes,
+      .genes = calloc(numGenes, sizeof(Gene))};
 
-  Gene gene = {
-      .sourceIsInput = true,
-      .sourceId = IN_WORLD_X,
-      .sinkIsOutput = true,
-      .sinkId = OUT_MOVE_X,
-      .weight = random() % 65536,
-  };
+  for (int i = 0; i < numGenes; i++)
+  {
+    genome.genes[i] = intToGene(rand() % UINT32_MAX);
+    if (genome.genes[i].sourceIsInput)
+    {
+      printf("CREATED GENE WITH INPUT!\n");
+    }
+  }
 
-  printf("Weight is %d\n", gene.weight);
+  return genome;
+}
 
+Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight)
+{
   Organism org = {
       .pos = (Pos){
-          .x = (uint16_t)(random() % 128),
-          .y = (uint16_t)(random() % 128)},
-      .genome = (Genome){.count = 1, .genes = &gene},
+          .x = rand() % worldWidth,
+          .y = rand() % worldHeight},
+      .genome = makeRandomGenome(numGenes),
   };
 
   organismBuildNeuralNet(&org);
 
-  char *geneString = genomeToString(&org.genome);
-  printf("Organism is at (%d,%d)\n", org.pos.x, org.pos.y);
-  printf("Organism has genome %s\n", geneString);
-  free(geneString);
+  return org;
+}
 
+void destroyOrganism(Organism *org)
+{
+  organismDestroyNeuralNet(org);
+  free(org->genome.genes);
+  org->genome.genes = NULL;
+  org->genome.count = 0;
+}
+
+void dumpOrganismNet(Organism *org)
+{
   printf("BREAKDOWN OF NET:\n");
-  for (int i = 0; i < org.net.connectionCount; i++)
+  for (int i = 0; i < org->net.connectionCount; i++)
   {
-    NeuralConnection *connection = &org.net.connections[i];
+    NeuralConnection *connection = &org->net.connections[i];
 
     printf("Connection %i:\n", i);
     printf("  Weight = %.2f\n", connection->weight);
@@ -424,30 +498,92 @@ int main(int argc, char *argv[])
     printf("  Sink   = #%d\n", connection->sinkId);
   }
 
-  for (int i = 0; i < org.net.neuronCount; i++)
+  for (int i = 0; i < org->net.neuronCount; i++)
   {
-    Neuron *neuron = &org.net.neurons[i];
+    Neuron *neuron = &org->net.neurons[i];
 
     printf("Neuron %d:\n", i);
     printf("  ID      = %d\n", neuron->id);
-    printf("  Type    = %s\n", (neuron->id & IN_BASE ? "INPUT" : (neuron->id & OUT_BASE ? "OUTPUT" : "INTERNAL")));
+    printf("  Type    = %s\n", (neuron->type == NEURON_INPUT ? "INPUT" : (neuron->type == NEURON_OUTPUT ? "OUTPUT" : "INTERNAL")));
+
+    if (neuron->type == NEURON_INPUT)
+      printf("  Type 2  = %s\n", InputTypeStrings[neuron->id & 0x7f]);
+    if (neuron->type == NEURON_OUTPUT)
+      printf("  Type 2  = %s\n", OutputTypeStrings[neuron->id & 0x7f]);
+
     printf("  Inputs  = %d\n", neuron->inputs);
     printf("  Outputs = %d\n", neuron->outputs);
   }
   printf("\n");
+}
 
-  Pos start = org.pos;
+int main(int argc, char *argv[])
+{
+  srand(time(NULL));
 
-  for (int i = 0; i < 10; i++)
+  // Gene gene = {
+  //     .sourceIsInput = true,
+  //     .sourceId = IN_WORLD_X,
+  //     .sinkIsOutput = true,
+  //     .sinkId = OUT_MOVE_X,
+  //     .weight = rand() % 65536,
+  // };
+
+  // printf("Weight is %d\n", gene.weight);
+
+  // Organism org = {
+  //     .pos = (Pos){
+  //         .x = (uint16_t)(rand() % 128),
+  //         .y = (uint16_t)(rand() % 128)},
+  //     .genome = (Genome){.count = 1, .genes = &gene},
+  // };
+
+  // organismBuildNeuralNet(&org);
+
+  // char *geneString = genomeToString(&org.genome);
+  // printf("Organism is at (%d,%d)\n", org.pos.x, org.pos.y);
+  // printf("Organism has genome %s\n", geneString);
+  // free(geneString);
+
+  testGeneCreation();
+
+  uint64_t n = 0;
+  while (true)
   {
-    printf("\n");
-    organismRunStep(&org);
-    printf("Organism is at (%d,%d)\n", org.pos.x, org.pos.y);
-  }
+    n++;
+    Organism org = makeRandomOrganism(2, 128, 128);
+    dumpOrganismNet(&org);
+    return 0;
+    Pos start = org.pos;
 
-  if (start.x != org.pos.x || start.y != org.pos.y)
-  {
-    printf("Organism moved!\n");
+    for (int i = 0; i < 10; i++)
+    {
+      // printf("\n");
+      organismRunStep(&org);
+      // printf("Organism is at (%d,%d)\n", org.pos.x, org.pos.y);
+    }
+
+    if (start.x != org.pos.x || start.y != org.pos.y)
+    {
+      printf("\nTook %ld attempts.\n", n);
+      dumpOrganismNet(&org);
+
+      char *genomeString = genomeToString(&org.genome);
+      printf("Genome: %s\n", genomeString);
+      free(genomeString);
+
+      printf("Organism moved!\n");
+
+      break;
+    }
+
+    if (n % 100000 == 0)
+    {
+      printf(".");
+      fflush(stdout);
+    }
+
+    destroyOrganism(&org);
   }
 
   return EXIT_SUCCESS;
