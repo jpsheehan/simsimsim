@@ -16,6 +16,7 @@
 #define SIM_GEN_STEPS 300
 #define SIM_NUM_GENES 4
 #define SIM_POPULATION 1000
+#define SIM_MAX_GENERATIONS 200
 
 typedef enum
 {
@@ -110,6 +111,7 @@ typedef struct
   Pos pos;
   Genome genome;
   NeuralNet net;
+  bool alive;
 } Organism;
 
 typedef struct
@@ -480,7 +482,25 @@ Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight)
           .x = rand() % worldWidth,
           .y = rand() % worldHeight},
       .genome = makeRandomGenome(numGenes),
+      .alive = true,
   };
+
+  organismBuildNeuralNet(&org);
+
+  return org;
+}
+
+Genome reproduce(Genome *a, Genome *b);
+
+Organism makeOffspring(Organism *a, Organism *b, int worldWidth, int worldHeight)
+{
+  Organism org = {
+      .pos = (Pos){
+          .x = rand() % worldWidth,
+          .y = rand() % worldHeight,
+      },
+      .genome = reproduce(&a->genome, &b->genome),
+      .alive = true};
 
   organismBuildNeuralNet(&org);
 
@@ -529,7 +549,55 @@ void dumpOrganismNet(Organism *org)
 
 bool selector(Organism *org)
 {
-  return (org->pos.x > (SIM_WIDTH / 2));
+  return org->alive && (org->pos.x > (SIM_WIDTH / 2));
+}
+
+void findMates(Organism orgs[], int population, Organism **outA, Organism **outB)
+{
+  // finds two distinct organisms that are alive
+  *outA = NULL;
+  *outB = NULL;
+
+  if (population == 0)
+  {
+    fprintf(stderr, "Cannot call findMates with a population of 0!\n");
+    exit(1);
+    return;
+  }
+
+  while (*outA == NULL)
+  {
+    *outA = &orgs[rand() % population];
+    if (!(*outA)->alive)
+    {
+      *outA = NULL;
+    }
+  }
+
+  while (*outB == NULL && *outA != *outB)
+  {
+    *outB = &orgs[rand() % population];
+    if (!(*outB)->alive)
+    {
+      *outB = NULL;
+    }
+  }
+}
+
+Genome reproduce(Genome *a, Genome *b)
+{
+  size_t newCount = (a->count + b->count) / 2;
+  int countFromA = a->count / 2;
+  int countFromB = newCount - countFromA;
+
+  Genome genome = {
+      .count = newCount,
+      .genes = calloc(newCount, sizeof(Gene))};
+
+  memcpy(genome.genes, a->genes, countFromA * sizeof(Gene));
+  memcpy(&genome.genes[countFromA], b->genes, countFromB * sizeof(Gene));
+
+  return genome;
 }
 
 int main(int argc, char *argv[])
@@ -565,33 +633,53 @@ int main(int argc, char *argv[])
   // uint64_t n = 0;
 
   Organism orgs[SIM_POPULATION] = {0};
+  Organism nextGenOrgs[SIM_POPULATION] = {0};
+
   for (int i = 0; i < SIM_POPULATION; i++)
   {
     orgs[i] = makeRandomOrganism(SIM_NUM_GENES, SIM_WIDTH, SIM_HEIGHT);
   }
 
-  for (int step = 0; step < SIM_GEN_STEPS; step++)
+  for (int g = 0; g < SIM_MAX_GENERATIONS; g++)
   {
+
+    for (int step = 0; step < SIM_GEN_STEPS; step++)
+    {
+      for (int i = 0; i < SIM_POPULATION; i++)
+      {
+        organismRunStep(&orgs[i]);
+      }
+    }
+
+    int survivors = 0;
     for (int i = 0; i < SIM_POPULATION; i++)
     {
-      organismRunStep(&orgs[i]);
+      if (selector(&orgs[i]))
+      {
+        survivors++;
+      }
+      else
+      {
+        orgs[i].alive = false;
+      }
     }
-  }
 
-  int survivors = 0;
-  for (int i = 0; i < SIM_POPULATION; i++)
-  {
-    if (selector(&orgs[i]))
+    float survivalRate = (float)survivors * 100.0f / SIM_POPULATION;
+    printf("Gen %d survival rate is %d/%d (%03.2f%%)\n", g, survivors, SIM_POPULATION, survivalRate);
+
+    for (int i = 0; i < SIM_POPULATION; i++)
     {
-      survivors++;
+      Organism *a, *b;
+      findMates(orgs, SIM_POPULATION, &a, &b);
+      nextGenOrgs[i] = makeOffspring(a, b, SIM_WIDTH, SIM_HEIGHT);
     }
-  }
-  float survivalRate = (float)survivors * 100.0f / SIM_POPULATION;
-  printf("Gen 0 survival rate is %d/%d (%03.2f%%)\n", survivors, SIM_POPULATION, survivalRate);
 
-  for (int i = 0; i < SIM_POPULATION; i++)
-  {
-    destroyOrganism(&orgs[i]);
+    for (int i = 0; i < SIM_POPULATION; i++)
+    {
+      destroyOrganism(&orgs[i]);
+    }
+
+    memcpy(orgs, nextGenOrgs, sizeof(Organism) * SIM_POPULATION);
   }
 
   return EXIT_SUCCESS;
