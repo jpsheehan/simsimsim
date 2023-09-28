@@ -16,11 +16,12 @@
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
 #define SIM_GEN_STEPS 150
-#define SIM_NUM_GENES 8
+#define SIM_NUM_GENES 12
 #define SIM_POPULATION 1000
-#define SIM_MAX_GENERATIONS 100
+#define SIM_MAX_GENERATIONS 50
+#define SIM_MUTATION_RATE 0.01
 
-char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y"};
+char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE", "IN_COLLIDE"};
 
 char *OutputTypeStrings[OUT_MAX] = {"MOVE_X", "MOVE_Y", "MOVE_RANDOM"};
 
@@ -176,7 +177,8 @@ void organismDestroyNeuralNet(Organism *org) {
   org->net.neuronCount = 0;
 }
 
-void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
+void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
+                     int currentStep, int maxStep) {
 
   if (!org->alive)
     return;
@@ -192,6 +194,8 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
     org->net.neurons[i].state = 0.0f;
   }
 
+  // Pos originalPosition = org->pos;
+
   // excite
   for (int i = 0; i < org->net.neuronCount; i++) {
     Neuron *input = &org->net.neurons[i];
@@ -205,6 +209,12 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
       break;
     case IN_WORLD_Y:
       input->state = (float)org->pos.y / (float)SIM_HEIGHT;
+      break;
+    case IN_AGE:
+      input->state = (float)currentStep / (float)maxStep;
+      break;
+    case IN_COLLIDE:
+      input->state = org->didCollide ? 1.0 : 0.0;
       break;
     }
 
@@ -288,8 +298,8 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
       break;
     case OUT_MOVE_RANDOM:
       if (fabs(output->state) >= 0.5f) {
-        org->pos.x += rand() % 3 - 1;
-        org->pos.y += rand() % 3 - 1;
+        org->pos.x += rand() % 2 == 0 ? -1 : 1;
+        org->pos.y += rand() % 2 == 0 ? -1 : 1;
       }
       break;
     }
@@ -307,12 +317,26 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
     org->pos.y = 0;
   }
 
+  // NEW COLLISION ALG
+  // for (int i = 0; i < otherOrgsCount; i++) {
+  //   Organism *otherOrg = &otherOrgs[i];
+  //   if (!otherOrg->alive)
+  //     continue;
+  //   if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y) {
+  //     // collision
+  //     org->pos = originalPosition;
+  //   }
+  // }
+
+  // OLD COLLISION ALG:
+  org->didCollide = false;
 searchForCollisions:
   for (int i = 0; i < otherOrgsCount; i++) {
     Organism *otherOrg = &otherOrgs[i];
     if (!otherOrg->alive)
       continue;
     if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y) {
+      org->didCollide = true;
       // collision
       org->pos.x += rand() % 2 == 0 ? 1 : -1;
       org->pos.y += rand() % 2 == 0 ? 1 : -1;
@@ -356,7 +380,7 @@ Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight) {
       .pos = (Pos){.x = rand() % worldWidth, .y = rand() % worldHeight},
       .genome = makeRandomGenome(numGenes),
       .alive = true,
-  };
+      .didCollide = false};
 
   organismBuildNeuralNet(&org);
 
@@ -365,15 +389,32 @@ Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight) {
 
 Genome reproduce(Genome *a, Genome *b);
 
+Genome mutate(Genome genome, float mutationRate) {
+  if ((float)rand() / (float)RAND_MAX >= mutationRate) {
+    return genome;
+  }
+
+  // printf("!");
+
+  // flip a random bit
+  int idx = rand() % genome.count;
+  int geneInt = geneToInt(&genome.genes[idx]);
+  geneInt = geneInt ^ (1 << (rand() % 32));
+  genome.genes[idx] = intToGene(geneInt);
+  return genome;
+}
+
 Organism makeOffspring(Organism *a, Organism *b, int worldWidth,
                        int worldHeight) {
-  Organism org = {.pos =
-                      (Pos){
-                          .x = rand() % worldWidth,
-                          .y = rand() % worldHeight,
-                      },
-                  .genome = reproduce(&a->genome, &b->genome),
-                  .alive = true};
+  Organism org = {
+      .pos =
+          (Pos){
+              .x = rand() % worldWidth,
+              .y = rand() % worldHeight,
+          },
+      .genome = mutate(reproduce(&a->genome, &b->genome), SIM_MUTATION_RATE),
+      .alive = true,
+      .didCollide = false};
 
   organismBuildNeuralNet(&org);
 
@@ -419,22 +460,33 @@ void dumpOrganismNet(Organism *org) {
   printf("\n");
 }
 
-bool centerSelector(Organism *org) {
-  return org->alive &&
-         ((org->pos.x > (SIM_WIDTH / 3)) &&
-          (org->pos.x < (2 * SIM_WIDTH / 3))) &&
-         ((org->pos.y > (SIM_HEIGHT / 3)) &&
-          (org->pos.y < (2 * SIM_HEIGHT / 3)));
+bool bottomSelector(Organism *org) {
+  return org->alive && (org->pos.x < (SIM_WIDTH / 2)) &&
+         (org->pos.y < (SIM_HEIGHT / 2));
 }
 
-bool selector(Organism *org, int gen) {
-  if (!org->alive)
-    return false;
-  if (gen < 50) {
-    return org->pos.x < SIM_WIDTH / 2;
-  }
-  return org->pos.x >= SIM_WIDTH / 2;
+bool centerXSelector(Organism *org) {
+  return org->alive &&
+         ((org->pos.x > (SIM_WIDTH / 3)) && (org->pos.x < (2 * SIM_WIDTH / 3)));
 }
+
+bool centerYSelector(Organism *org) {
+  return org->alive && ((org->pos.y > (SIM_HEIGHT / 3)) &&
+                        (org->pos.y < (2 * SIM_HEIGHT / 3)));
+}
+
+bool centerSelector(Organism *org) {
+  return centerXSelector(org) && centerYSelector(org);
+}
+
+// bool selector(Organism *org, int step) {
+//   if (!org->alive)
+//     return false;
+//   if (step < (SIM_GEN_STEPS / 2)) {
+//     return org->pos.x < SIM_WIDTH / 2;
+//   }
+//   return org->pos.x >= SIM_WIDTH / 2;
+// }
 
 void findMates(Organism orgs[], int population, Organism **outA,
                Organism **outB) {
@@ -464,14 +516,24 @@ void findMates(Organism orgs[], int population, Organism **outA,
 }
 
 Genome reproduce(Genome *a, Genome *b) {
-  size_t newCount = (a->count + b->count) / 2;
-  int countFromA = a->count / 2;
-  int countFromB = newCount - countFromA;
+  int largerCount = a->count > b->count ? a->count : b->count;
 
-  Genome genome = {.count = newCount, .genes = calloc(newCount, sizeof(Gene))};
+  Genome genome = {.count = largerCount,
+                   .genes = calloc(largerCount, sizeof(Gene))};
 
-  memcpy(genome.genes, a->genes, countFromA * sizeof(Gene));
-  memcpy(&genome.genes[countFromA], b->genes, countFromB * sizeof(Gene));
+  for (int i = 0; i < largerCount; i++) {
+    if (i < a->count && i < b->count) {
+      if (rand() % 2 == 0) {
+        genome.genes[i] = a->genes[i];
+      } else {
+        genome.genes[i] = b->genes[i];
+      }
+    } else if (i < a->count) {
+      genome.genes[i] = a->genes[i];
+    } else {
+      genome.genes[i] = b->genes[i];
+    }
+  }
 
   return genome;
 }
@@ -492,18 +554,16 @@ int main(int argc, char *argv[]) {
     visSetGeneration(g);
 
     for (int step = 0; step < SIM_GEN_STEPS; step++) {
-      visSetStep(step);
+      // visSetStep(step);
 
-      if (g % 10 == 0) {
+      if (g == SIM_MAX_GENERATIONS - 1) {
         visDrawStep(orgs, SIM_POPULATION);
       }
 
       for (int i = 0; i < SIM_POPULATION; i++) {
-        organismRunStep(&orgs[i], orgs, i);
+        organismRunStep(&orgs[i], orgs, i, step, SIM_GEN_STEPS);
       }
     }
-
-    visDrawStep(orgs, SIM_POPULATION);
 
     int survivors = 0;
     for (int i = 0; i < SIM_POPULATION; i++) {
@@ -513,6 +573,8 @@ int main(int argc, char *argv[]) {
         orgs[i].alive = false;
       }
     }
+
+    visDrawStep(orgs, SIM_POPULATION);
 
     float survivalRate = (float)survivors * 100.0f / SIM_POPULATION;
     printf("Gen %d survival rate is %d/%d (%03.2f%%)\n", g, survivors,

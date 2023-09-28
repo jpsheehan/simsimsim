@@ -8,6 +8,8 @@ typedef enum
 {
   IN_WORLD_X,
   IN_WORLD_Y,
+  IN_AGE,
+  IN_COLLIDE,
   IN_MAX
 } InputType;
 
@@ -90,6 +92,7 @@ typedef struct
   Genome genome;
   NeuralNet net;
   bool alive;
+  bool didCollide;
 } Organism;
 
 typedef struct
