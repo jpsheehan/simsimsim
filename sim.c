@@ -187,6 +187,7 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   // reset
   for (int i = 0; i < org->net.connectionCount; i++) {
     org->net.connections[i].visited = false;
+    org->didCollide = false;
   }
   for (int i = 0; i < org->net.neuronCount; i++) {
     org->net.neurons[i].inputsVisited = 0;
@@ -330,7 +331,6 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   // }
 
   // OLD COLLISION ALG:
-  org->didCollide = false;
 searchForCollisions:
   for (int i = 0; i < otherOrgsCount; i++) {
     Organism *otherOrg = &otherOrgs[i];
@@ -338,6 +338,7 @@ searchForCollisions:
       continue;
     if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y) {
       org->didCollide = true;
+      otherOrg->didCollide = true;
       // collision
       org->pos.x += rand() % 2 == 0 ? 1 : -1;
       org->pos.y += rand() % 2 == 0 ? 1 : -1;
