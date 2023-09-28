@@ -10,7 +10,12 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define INTERNAL_MAX 1
+#define SIM_INTERNAL_MAX 2
+#define SIM_WIDTH 128
+#define SIM_HEIGHT 128
+#define SIM_GEN_STEPS 300
+#define SIM_NUM_GENES 4
+#define SIM_POPULATION 1000
 
 typedef enum
 {
@@ -207,7 +212,7 @@ void organismBuildNeuralNet(Organism *org)
     }
     else
     {
-      sourceId %= INTERNAL_MAX;
+      sourceId %= SIM_INTERNAL_MAX;
       sourceId |= INTERNAL_BASE;
     }
 
@@ -219,7 +224,7 @@ void organismBuildNeuralNet(Organism *org)
     }
     else
     {
-      sinkId %= INTERNAL_MAX;
+      sinkId %= SIM_INTERNAL_MAX;
       sinkId |= INTERNAL_BASE;
     }
 
@@ -445,6 +450,11 @@ void organismRunStep(Organism *org)
   }
 }
 
+uint32_t rand_uint32(void)
+{
+  return (uint32_t)((uint16_t)(rand()) << 16) | (uint16_t)rand();
+}
+
 Genome makeRandomGenome(uint8_t numGenes)
 {
   Genome genome = {
@@ -453,11 +463,11 @@ Genome makeRandomGenome(uint8_t numGenes)
 
   for (int i = 0; i < numGenes; i++)
   {
-    genome.genes[i] = intToGene(rand() % UINT32_MAX);
-    if (genome.genes[i].sourceIsInput)
-    {
-      printf("CREATED GENE WITH INPUT!\n");
-    }
+    genome.genes[i] = intToGene(rand_uint32());
+    // if (genome.genes[i].sourceIsInput)
+    // {
+    //   printf("CREATED GENE WITH INPUT!\n");
+    // }
   }
 
   return genome;
@@ -517,6 +527,11 @@ void dumpOrganismNet(Organism *org)
   printf("\n");
 }
 
+bool selector(Organism *org)
+{
+  return (org->pos.x > (SIM_WIDTH / 2));
+}
+
 int main(int argc, char *argv[])
 {
   srand(time(NULL));
@@ -545,45 +560,38 @@ int main(int argc, char *argv[])
   // printf("Organism has genome %s\n", geneString);
   // free(geneString);
 
-  testGeneCreation();
+  // testGeneCreation();
 
-  uint64_t n = 0;
-  while (true)
+  // uint64_t n = 0;
+
+  Organism orgs[SIM_POPULATION] = {0};
+  for (int i = 0; i < SIM_POPULATION; i++)
   {
-    n++;
-    Organism org = makeRandomOrganism(2, 128, 128);
-    dumpOrganismNet(&org);
-    return 0;
-    Pos start = org.pos;
+    orgs[i] = makeRandomOrganism(SIM_NUM_GENES, SIM_WIDTH, SIM_HEIGHT);
+  }
 
-    for (int i = 0; i < 10; i++)
+  for (int step = 0; step < SIM_GEN_STEPS; step++)
+  {
+    for (int i = 0; i < SIM_POPULATION; i++)
     {
-      // printf("\n");
-      organismRunStep(&org);
-      // printf("Organism is at (%d,%d)\n", org.pos.x, org.pos.y);
+      organismRunStep(&orgs[i]);
     }
+  }
 
-    if (start.x != org.pos.x || start.y != org.pos.y)
+  int survivors = 0;
+  for (int i = 0; i < SIM_POPULATION; i++)
+  {
+    if (selector(&orgs[i]))
     {
-      printf("\nTook %ld attempts.\n", n);
-      dumpOrganismNet(&org);
-
-      char *genomeString = genomeToString(&org.genome);
-      printf("Genome: %s\n", genomeString);
-      free(genomeString);
-
-      printf("Organism moved!\n");
-
-      break;
+      survivors++;
     }
+  }
+  float survivalRate = (float)survivors * 100.0f / SIM_POPULATION;
+  printf("Gen 0 survival rate is %d/%d (%03.2f%%)\n", survivors, SIM_POPULATION, survivalRate);
 
-    if (n % 100000 == 0)
-    {
-      printf(".");
-      fflush(stdout);
-    }
-
-    destroyOrganism(&org);
+  for (int i = 0; i < SIM_POPULATION; i++)
+  {
+    destroyOrganism(&orgs[i]);
   }
 
   return EXIT_SUCCESS;
