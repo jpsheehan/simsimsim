@@ -10,6 +10,7 @@ typedef enum
   IN_WORLD_Y,
   IN_AGE,
   IN_COLLIDE,
+  IN_ENERGY,
   IN_MAX
 } InputType;
 
@@ -93,6 +94,7 @@ typedef struct
   NeuralNet net;
   bool alive;
   bool didCollide;
+  float energyLevel;
 } Organism;
 
 typedef struct
