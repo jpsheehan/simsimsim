@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include "visualiser.h"
+#include "sim.h"
 
 #define IN_BASE 0x8000
 #define OUT_BASE 0x4000
@@ -16,114 +18,16 @@
 #define SIM_GEN_STEPS 300
 #define SIM_NUM_GENES 4
 #define SIM_POPULATION 1000
-#define SIM_MAX_GENERATIONS 200
-
-typedef enum
-{
-  IN_WORLD_X,
-  IN_WORLD_Y,
-  IN_MAX
-} InputType;
+#define SIM_MAX_GENERATIONS 10
 
 char *InputTypeStrings[IN_MAX] = {
     "WORLD_X",
     "WORLD_Y"};
 
-typedef enum
-{
-  OUT_MOVE_X,
-  OUT_MOVE_Y,
-  OUT_MOVE_RANDOM,
-  OUT_MAX
-} OutputType;
-
 char *OutputTypeStrings[OUT_MAX] = {
     "MOVE_X",
     "MOVE_Y",
     "MOVE_RANDOM"};
-
-typedef struct
-{
-  uint16_t x;
-  uint16_t y;
-} Pos;
-
-typedef struct
-{
-  uint16_t w;
-  uint16_t h;
-} Size;
-
-typedef struct
-{
-  bool sourceIsInput : 1;
-  uint8_t sourceId : 7;
-  bool sinkIsOutput : 1;
-  uint8_t sinkId : 7;
-  uint16_t weight;
-} Gene;
-
-typedef struct
-{
-  uint8_t count;
-  Gene *genes;
-} Genome;
-
-struct Neuron_t;
-
-typedef struct
-{
-  uint16_t sourceId;
-  uint16_t sinkId;
-  float weight;
-  bool visited;
-} NeuralConnection;
-
-typedef enum
-{
-  NEURON_INPUT,
-  NEURON_INTERNAL,
-  NEURON_OUTPUT
-} NeuronType;
-
-typedef struct Neuron_t
-{
-  uint16_t id;
-  NeuronType type;
-  float prevState;
-  float state;
-  uint8_t inputs;
-  uint8_t inputsVisited;
-  uint8_t outputs;
-  uint8_t outputsVisited;
-} Neuron;
-
-typedef struct
-{
-  uint16_t neuronCount;
-  Neuron *neurons;
-  uint16_t connectionCount;
-  NeuralConnection *connections;
-} NeuralNet;
-
-typedef struct
-{
-  Pos pos;
-  Genome genome;
-  NeuralNet net;
-  bool alive;
-} Organism;
-
-typedef struct
-{
-  uint16_t step;
-  Organism *organisms;
-} Generation;
-
-typedef struct
-{
-  Size size;
-} Simulation;
 
 Gene intToGene(uint32_t n)
 {
@@ -602,6 +506,8 @@ Genome reproduce(Genome *a, Genome *b)
 
 int main(int argc, char *argv[])
 {
+  visInit(SIM_WIDTH, SIM_HEIGHT);
+
   srand(time(NULL));
 
   Organism orgs[SIM_POPULATION] = {0};
@@ -614,14 +520,19 @@ int main(int argc, char *argv[])
 
   for (int g = 0; g < SIM_MAX_GENERATIONS; g++)
   {
+    visSetGeneration(g);
 
     for (int step = 0; step < SIM_GEN_STEPS; step++)
     {
+      visSetStep(step);
+      visDrawStep(orgs, SIM_POPULATION);
+
       for (int i = 0; i < SIM_POPULATION; i++)
       {
         organismRunStep(&orgs[i]);
       }
     }
+    visDrawStep(orgs, SIM_POPULATION);
 
     int survivors = 0;
     for (int i = 0; i < SIM_POPULATION; i++)
@@ -653,6 +564,8 @@ int main(int argc, char *argv[])
 
     memcpy(orgs, nextGenOrgs, sizeof(Organism) * SIM_POPULATION);
   }
+
+  visDestroy();
 
   return EXIT_SUCCESS;
 }
