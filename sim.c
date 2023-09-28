@@ -12,13 +12,13 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 4
+#define SIM_INTERNAL_MAX 1
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
-#define SIM_GEN_STEPS 150
-#define SIM_NUM_GENES 12
+#define SIM_GEN_STEPS 300
+#define SIM_NUM_GENES 2
 #define SIM_POPULATION 1000
-#define SIM_MAX_GENERATIONS 50
+#define SIM_MAX_GENERATIONS 30
 #define SIM_MUTATION_RATE 0.01
 
 char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE", "IN_COLLIDE"};
@@ -479,6 +479,15 @@ bool centerSelector(Organism *org) {
   return centerXSelector(org) && centerYSelector(org);
 }
 
+bool triangleSelector(Organism *org) {
+  return org->alive && (org->pos.x >= org->pos.y);
+}
+
+bool leftAndRightSelector(Organism* org)
+{
+  return org->alive && (org->pos.x < SIM_WIDTH * 0.2 || org->pos.x > SIM_WIDTH * 0.8) ;
+}
+
 // bool selector(Organism *org, int step) {
 //   if (!org->alive)
 //     return false;
@@ -567,7 +576,7 @@ int main(int argc, char *argv[]) {
 
     int survivors = 0;
     for (int i = 0; i < SIM_POPULATION; i++) {
-      if (centerSelector(&orgs[i])) {
+      if (leftAndRightSelector(&orgs[i])) {
         survivors++;
       } else {
         orgs[i].alive = false;
