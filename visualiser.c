@@ -1,3 +1,4 @@
+#include <SDL2/SDL_video.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -15,6 +16,7 @@ static uint32_t step;
 static int paddingLeft, paddingTop, simW, simH;
 
 void visDrawShell(void);
+void visSetTitle(void);
 
 void visInit(uint32_t w, uint32_t h)
 {
@@ -56,11 +58,13 @@ void visDrawShell(void)
 void visSetGeneration(int g)
 {
     generation = g;
+    visSetTitle();
 }
 
 void visSetStep(int s)
 {
     step = s;
+    visSetTitle();
 }
 
 void visDrawStep(Organism* orgs, uint32_t count)
@@ -94,4 +98,11 @@ void visDestroy(void)
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+}
+
+void visSetTitle(void)
+{
+    char title[100];
+    snprintf(title, 100, "Gen %d, Step %d", generation, step);
+    SDL_SetWindowTitle(window, title);
 }
