@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h>
 
 #define IN_BASE 0x8000
 #define OUT_BASE 0x4000
@@ -547,8 +548,16 @@ Genome reproduce(Genome *a, Genome *b) {
   return genome;
 }
 
+static volatile bool interrupted = false;
+
+void signalHandler(int sig)
+{
+  interrupted = true;
+}
+
 int main(int argc, char *argv[]) {
   visInit(SIM_WIDTH, SIM_HEIGHT);
+  signal(SIGINT, &signalHandler);
 
   srand(time(NULL));
 
@@ -572,6 +581,8 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < SIM_POPULATION; i++) {
         organismRunStep(&orgs[i], orgs, i, step, SIM_GEN_STEPS);
       }
+
+      if (interrupted) break;
     }
 
     int survivors = 0;
@@ -600,6 +611,8 @@ int main(int argc, char *argv[]) {
     }
 
     memcpy(orgs, nextGenOrgs, sizeof(Organism) * SIM_POPULATION);
+
+    if (interrupted) break;
   }
 
   for (int i = 0; i < SIM_POPULATION; i++) {
