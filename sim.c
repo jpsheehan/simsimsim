@@ -12,13 +12,13 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 2
+#define SIM_INTERNAL_MAX 4
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
 #define SIM_GEN_STEPS 150
-#define SIM_NUM_GENES 4
+#define SIM_NUM_GENES 8
 #define SIM_POPULATION 1000
-#define SIM_MAX_GENERATIONS 20
+#define SIM_MAX_GENERATIONS 1000
 
 char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y"};
 
@@ -176,7 +176,10 @@ void organismDestroyNeuralNet(Organism *org) {
   org->net.neuronCount = 0;
 }
 
-void organismRunStep(Organism *org) {
+void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
+
+  if (!org->alive) return;
+
   // reset
   for (int i = 0; i < org->net.connectionCount; i++) {
     org->net.connections[i].visited = false;
@@ -292,15 +295,40 @@ void organismRunStep(Organism *org) {
   }
 
   // enforce collisions with edge
-  if (org->pos.x >= 128) {
-    org->pos.x = 127;
+  if (org->pos.x >= SIM_WIDTH) {
+    org->pos.x = SIM_WIDTH - 1;
   } else if (org->pos.x < 0) {
     org->pos.x = 0;
   }
-  if (org->pos.y >= 128) {
-    org->pos.y = 127;
+  if (org->pos.y >= SIM_HEIGHT) {
+    org->pos.y = SIM_HEIGHT - 1;
   } else if (org->pos.y < 0) {
     org->pos.y = 0;
+  }
+
+searchForCollisions:
+  for (int i = 0; i < otherOrgsCount; i++) {
+    Organism *otherOrg = &otherOrgs[i];
+    if (!otherOrg->alive)
+      continue;
+    if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y) {
+      // collision
+      org->pos.x += rand() % 2 == 0 ? 1 : -1;
+      org->pos.y += rand() % 2 == 0 ? 1 : -1;
+
+      if (org->pos.x >= SIM_WIDTH) {
+        org->pos.x = SIM_WIDTH - 1;
+      } else if (org->pos.x < 0) {
+        org->pos.x = 0;
+      }
+      if (org->pos.y >= SIM_HEIGHT) {
+        org->pos.y = SIM_HEIGHT - 1;
+      } else if (org->pos.y < 0) {
+        org->pos.y = 0;
+      }
+
+      goto searchForCollisions;
+    }
   }
 }
 
@@ -391,7 +419,11 @@ void dumpOrganismNet(Organism *org) {
 }
 
 bool selector(Organism *org) {
-  return org->alive && (org->pos.x > (SIM_WIDTH / 2));
+  return org->alive &&
+         ((org->pos.x > (SIM_WIDTH / 3)) &&
+          (org->pos.x < (2 * SIM_WIDTH / 3))) &&
+         ((org->pos.y > (SIM_HEIGHT / 3)) &&
+          (org->pos.y < (2 * SIM_HEIGHT / 3)));
 }
 
 void findMates(Organism orgs[], int population, Organism **outA,
@@ -451,12 +483,16 @@ int main(int argc, char *argv[]) {
 
     for (int step = 0; step < SIM_GEN_STEPS; step++) {
       visSetStep(step);
-      visDrawStep(orgs, SIM_POPULATION);
+
+      if (g % 10 == 0) {
+        visDrawStep(orgs, SIM_POPULATION);
+      }
 
       for (int i = 0; i < SIM_POPULATION; i++) {
-        organismRunStep(&orgs[i]);
+        organismRunStep(&orgs[i], orgs, i);
       }
     }
+
     visDrawStep(orgs, SIM_POPULATION);
 
     int survivors = 0;

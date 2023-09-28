@@ -52,7 +52,11 @@ void visDrawShell(void)
     SDL_RenderClear(renderer);
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderDrawRect(renderer, &(SDL_Rect){ .x = paddingLeft, .y = paddingTop, .w = simW * SIM_SCALE, .h = simH * SIM_SCALE});
+    SDL_RenderDrawRect(renderer, &(SDL_Rect){
+        .x = paddingLeft - 1,
+        .y = paddingTop - 1,
+        .w = simW * SIM_SCALE + 2,
+        .h = simH * SIM_SCALE + 2});
 }
 
 void visSetGeneration(int g)
