@@ -10,3 +10,8 @@ visualiser.o: visualiser.c
 
 sim.o: sim.c
 	$(CC) $^ $(CFLAGS) -c -o $@
+
+clean:
+	rm -f *.o life
+
+.PHONY: clean

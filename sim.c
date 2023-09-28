@@ -18,7 +18,7 @@
 #define SIM_GEN_STEPS 150
 #define SIM_NUM_GENES 8
 #define SIM_POPULATION 1000
-#define SIM_MAX_GENERATIONS 1000
+#define SIM_MAX_GENERATIONS 100
 
 char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y"};
 
@@ -178,7 +178,8 @@ void organismDestroyNeuralNet(Organism *org) {
 
 void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
 
-  if (!org->alive) return;
+  if (!org->alive)
+    return;
 
   // reset
   for (int i = 0; i < org->net.connectionCount; i++) {
@@ -200,10 +201,10 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount) {
 
     switch (input->id & 0xff) {
     case IN_WORLD_X:
-      input->state = (float)org->pos.x / 128.0f;
+      input->state = (float)org->pos.x / (float)SIM_WIDTH;
       break;
     case IN_WORLD_Y:
-      input->state = (float)org->pos.y / 128.0f;
+      input->state = (float)org->pos.y / (float)SIM_HEIGHT;
       break;
     }
 
@@ -418,12 +419,21 @@ void dumpOrganismNet(Organism *org) {
   printf("\n");
 }
 
-bool selector(Organism *org) {
+bool centerSelector(Organism *org) {
   return org->alive &&
          ((org->pos.x > (SIM_WIDTH / 3)) &&
           (org->pos.x < (2 * SIM_WIDTH / 3))) &&
          ((org->pos.y > (SIM_HEIGHT / 3)) &&
           (org->pos.y < (2 * SIM_HEIGHT / 3)));
+}
+
+bool selector(Organism *org, int gen) {
+  if (!org->alive)
+    return false;
+  if (gen < 50) {
+    return org->pos.x < SIM_WIDTH / 2;
+  }
+  return org->pos.x >= SIM_WIDTH / 2;
 }
 
 void findMates(Organism orgs[], int population, Organism **outA,
@@ -497,7 +507,7 @@ int main(int argc, char *argv[]) {
 
     int survivors = 0;
     for (int i = 0; i < SIM_POPULATION; i++) {
-      if (selector(&orgs[i])) {
+      if (centerSelector(&orgs[i])) {
         survivors++;
       } else {
         orgs[i].alive = false;
