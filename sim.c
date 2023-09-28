@@ -604,34 +604,6 @@ int main(int argc, char *argv[])
 {
   srand(time(NULL));
 
-  // Gene gene = {
-  //     .sourceIsInput = true,
-  //     .sourceId = IN_WORLD_X,
-  //     .sinkIsOutput = true,
-  //     .sinkId = OUT_MOVE_X,
-  //     .weight = rand() % 65536,
-  // };
-
-  // printf("Weight is %d\n", gene.weight);
-
-  // Organism org = {
-  //     .pos = (Pos){
-  //         .x = (uint16_t)(rand() % 128),
-  //         .y = (uint16_t)(rand() % 128)},
-  //     .genome = (Genome){.count = 1, .genes = &gene},
-  // };
-
-  // organismBuildNeuralNet(&org);
-
-  // char *geneString = genomeToString(&org.genome);
-  // printf("Organism is at (%d,%d)\n", org.pos.x, org.pos.y);
-  // printf("Organism has genome %s\n", geneString);
-  // free(geneString);
-
-  // testGeneCreation();
-
-  // uint64_t n = 0;
-
   Organism orgs[SIM_POPULATION] = {0};
   Organism nextGenOrgs[SIM_POPULATION] = {0};
 
