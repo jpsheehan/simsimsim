@@ -37,6 +37,15 @@ typedef struct
 
 typedef struct
 {
+    int16_t x;
+    int16_t y;
+    int16_t w;
+    int16_t h;
+} Rect;
+
+
+typedef struct
+{
   bool sourceIsInput : 1;
   uint8_t sourceId : 7;
   bool sinkIsOutput : 1;

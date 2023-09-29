@@ -13,5 +13,6 @@ void visDrawBlank(void);
 void visSetGeneration(int);
 void visSetStep(int);
 void visDrawStep(Organism* orgs, uint32_t count);
+void visSetObstacles(Rect* obstacles, int count);
 
 #endif

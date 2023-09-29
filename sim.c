@@ -13,7 +13,7 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 2
+#define SIM_INTERNAL_MAX 3
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
 #define SIM_GEN_STEPS 150
@@ -24,6 +24,12 @@
 #define SIM_ENERGY_TO_MOVE 0.01f
 #define SIM_ENERGY_TO_REST 0.005f
 #define SIM_ENABLE_COLLISIONS true
+
+static Rect obstacles[2] = {
+  (Rect){ .x = 32, .y = 48, .w = 2, .h = 32 },
+  (Rect){ .x = 94, .y = 48, .w = 2, .h = 32 },
+};
+static int obstaclesCount = 2; 
 
 char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE", "IN_COLLIDE",
                                   "IN_ENERGY"};
@@ -193,6 +199,26 @@ Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount) {
   return NULL;
 }
 
+void organismMoveBackIntoZone(Organism* org)
+{
+  if (org->pos.x >= SIM_WIDTH)
+      {
+        org->pos.x = SIM_WIDTH - 1;
+      }
+      else if (org->pos.x < 0)
+      {
+        org->pos.x = 0;
+      }
+      if (org->pos.y >= SIM_HEIGHT)
+      {
+        org->pos.y = SIM_HEIGHT - 1;
+      }
+      else if (org->pos.y < 0)
+      {
+        org->pos.y = 0;
+      }
+}
+
 void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
                      int currentStep, int maxStep) {
 
@@ -334,16 +360,7 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   }
 
   // enforce collisions with edge
-  if (org->pos.x >= SIM_WIDTH) {
-    org->pos.x = SIM_WIDTH - 1;
-  } else if (org->pos.x < 0) {
-    org->pos.x = 0;
-  }
-  if (org->pos.y >= SIM_HEIGHT) {
-    org->pos.y = SIM_HEIGHT - 1;
-  } else if (org->pos.y < 0) {
-    org->pos.y = 0;
-  }
+  organismMoveBackIntoZone(org);
 
   if (didMove) {
     org->energyLevel -= SIM_ENERGY_TO_MOVE;
@@ -360,58 +377,60 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   }
 
 #if SIM_ENABLE_COLLISIONS
-  if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount) != NULL) {
-    // collision
-    org->pos = originalPosition;
-    org->didCollide = true;
+  // if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount) != NULL) {
+  //   // collision
+  //   org->pos = originalPosition;
+  //   org->didCollide = true;
 
-    int maxPos = 0;
-    Pos otherPositions[8] = {0};
+  //   int maxPos = 0;
+  //   Pos otherPositions[8] = {0};
 
-    if (org->pos.x > 0 && org->pos.y > 0) {
-      otherPositions[maxPos++] =
-          (Pos){.x = org->pos.x - 1, .y = org->pos.y - 1};
-    }
-    if (org->pos.x > 0 && org->pos.y + 1 < SIM_HEIGHT) {
-      otherPositions[maxPos++] =
-          (Pos){.x = org->pos.x - 1, .y = org->pos.y + 1};
-    }
-    if (org->pos.x > 0) {
-      otherPositions[maxPos++] = (Pos){.x = org->pos.x - 1, .y = org->pos.y};
-    }
-    if (org->pos.x + 1 < SIM_WIDTH && org->pos.y > 0) {
-      otherPositions[maxPos++] =
-          (Pos){.x = org->pos.x + 1, .y = org->pos.y - 1};
-    }
-    if (org->pos.x + 1 < SIM_WIDTH && org->pos.y + 1 < SIM_HEIGHT) {
-      otherPositions[maxPos++] =
-          (Pos){.x = org->pos.x + 1, .y = org->pos.y + 1};
-    }
-    if (org->pos.x + 1 < SIM_WIDTH) {
-      otherPositions[maxPos++] = (Pos){.x = org->pos.x + 1, .y = org->pos.y};
-    }
-    if (org->pos.y > 0) {
-      otherPositions[maxPos++] = (Pos){.x = org->pos.x, .y = org->pos.y - 1};
-    }
-    if (org->pos.y + 1 < SIM_WIDTH) {
-      otherPositions[maxPos++] = (Pos){.x = org->pos.x, .y = org->pos.y + 1};
-    }
+  //   if (org->pos.x > 0 && org->pos.y > 0) {
+  //     otherPositions[maxPos++] =
+  //         (Pos){.x = org->pos.x - 1, .y = org->pos.y - 1};
+  //   }
+  //   if (org->pos.x > 0 && org->pos.y + 1 < SIM_HEIGHT) {
+  //     otherPositions[maxPos++] =
+  //         (Pos){.x = org->pos.x - 1, .y = org->pos.y + 1};
+  //   }
+  //   if (org->pos.x > 0) {
+  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x - 1, .y = org->pos.y};
+  //   }
+  //   if (org->pos.x + 1 < SIM_WIDTH && org->pos.y > 0) {
+  //     otherPositions[maxPos++] =
+  //         (Pos){.x = org->pos.x + 1, .y = org->pos.y - 1};
+  //   }
+  //   if (org->pos.x + 1 < SIM_WIDTH && org->pos.y + 1 < SIM_HEIGHT) {
+  //     otherPositions[maxPos++] =
+  //         (Pos){.x = org->pos.x + 1, .y = org->pos.y + 1};
+  //   }
+  //   if (org->pos.x + 1 < SIM_WIDTH) {
+  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x + 1, .y = org->pos.y};
+  //   }
+  //   if (org->pos.y > 0) {
+  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x, .y = org->pos.y - 1};
+  //   }
+  //   if (org->pos.y + 1 < SIM_WIDTH) {
+  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x, .y = org->pos.y + 1};
+  //   }
 
-    bool foundFreePosition = false;
-    for (int i = 0; i < maxPos; i++) {
-      Pos testPos = otherPositions[i];
-      if (getOrganismByPos(testPos, otherOrgs, otherOrgsCount) == NULL) {
-        foundFreePosition = true;
-        org->pos = testPos;
-        break;
-      }
-    }
+  //   bool foundFreePosition = false;
+  //   for (int i = 0; i < maxPos; i++) {
+  //     Pos testPos = otherPositions[i];
+  //     if (getOrganismByPos(testPos, otherOrgs, otherOrgsCount) == NULL) {
+  //       foundFreePosition = true;
+  //       org->pos = testPos;
+  //       break;
+  //     }
+  //   }
 
-    if (!foundFreePosition) {
-      // crushed; nowhere to move
-      org->alive = false;
-    }
-  }
+  //   if (!foundFreePosition) {
+  //     // crushed; nowhere to move
+  //     org->alive = false;
+  //   }
+  // }
+
+
 // for (int i = 0; i < otherOrgsCount; i++) {
 //   Organism *otherOrg = &otherOrgs[i];
 
@@ -435,40 +454,25 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
 // }
 
 //   // OLD COLLISION ALG:
-// searchForCollisions:
-//   for (int i = 0; i < otherOrgsCount; i++)
-//   {
-//     Organism *otherOrg = &otherOrgs[i];
-//     if (!otherOrg->alive)
-//       continue;
-//     if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y)
-//     {
-//       org->didCollide = true;
-//       otherOrg->didCollide = true;
-//       // collision
-//       org->pos.x += rand() % 2 == 0 ? 1 : -1;
-//       org->pos.y += rand() % 2 == 0 ? 1 : -1;
+searchForCollisions:
+  for (int i = 0; i < otherOrgsCount; i++)
+  {
+    Organism *otherOrg = &otherOrgs[i];
+    // if (!otherOrg->alive)
+      // continue;
+    if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y)
+    {
+      org->didCollide = true;
+      otherOrg->didCollide = true;
+      // collision
+      org->pos.x += rand() % 3 - 1;
+      org->pos.y += rand() % 3 - 1;
 
-//       if (org->pos.x >= SIM_WIDTH)
-//       {
-//         org->pos.x = SIM_WIDTH - 1;
-//       }
-//       else if (org->pos.x < 0)
-//       {
-//         org->pos.x = 0;
-//       }
-//       if (org->pos.y >= SIM_HEIGHT)
-//       {
-//         org->pos.y = SIM_HEIGHT - 1;
-//       }
-//       else if (org->pos.y < 0)
-//       {
-//         org->pos.y = 0;
-//       }
+      organismMoveBackIntoZone(org);
 
-//       goto searchForCollisions;
-//     }
-//   }
+      goto searchForCollisions;
+    }
+  }
 #endif
 }
 
@@ -481,10 +485,6 @@ Genome makeRandomGenome(uint8_t numGenes) {
 
   for (int i = 0; i < numGenes; i++) {
     genome.genes[i] = intToGene(rand_uint32());
-    // if (genome.genes[i].sourceIsInput)
-    // {
-    //   printf("CREATED GENE WITH INPUT!\n");
-    // }
   }
 
   return genome;
@@ -509,8 +509,6 @@ Genome mutate(Genome genome, float mutationRate) {
   if ((float)rand() / (float)RAND_MAX >= mutationRate) {
     return genome;
   }
-
-  // printf("!");
 
   // flip a random bit
   int idx = rand() % genome.count;
@@ -594,7 +592,7 @@ bool centerYSelector(Organism *org) {
 
 bool collidedSelector(Organism *org) { return org->didCollide; }
 
-bool hasEnoughEnergy(Organism *org) { return org->energyLevel > 0.5f; }
+bool hasEnoughEnergy(Organism *org) { return org->energyLevel < 0.1f; }
 
 bool centerSelector(Organism *org) {
   return centerXSelector(org) && centerYSelector(org);
@@ -681,6 +679,8 @@ int main(int argc, char *argv[]) {
   Organism orgs[SIM_POPULATION] = {0};
   Organism nextGenOrgs[SIM_POPULATION] = {0};
 
+  visSetObstacles(obstacles, obstaclesCount);
+
   for (int i = 0; i < SIM_POPULATION; i++) {
     orgs[i] = makeRandomOrganism(SIM_NUM_GENES, SIM_WIDTH, SIM_HEIGHT);
   }
@@ -689,11 +689,11 @@ int main(int argc, char *argv[]) {
     visSetGeneration(g);
 
     for (int step = 0; step < SIM_GEN_STEPS; step++) {
-      // visSetStep(step);
 
-      if (g == SIM_MAX_GENERATIONS - 1) {
+      // if (g == SIM_MAX_GENERATIONS - 1) {
+      visSetStep(step);
         visDrawStep(orgs, SIM_POPULATION);
-      }
+      // }
 
       for (int i = 0; i < SIM_POPULATION; i++) {
         organismRunStep(&orgs[i], orgs, i, step, SIM_GEN_STEPS);
@@ -703,11 +703,15 @@ int main(int argc, char *argv[]) {
         break;
     }
 
+    if (interrupted) {
+      break;
+    }
+
     int survivors = 0;
     for (int i = 0; i < SIM_POPULATION; i++) {
       Organism *org = &orgs[i];
 
-      if (org->alive && centerSelector(org) /*&& hasEnoughEnergy(org)*/) {
+      if (org->alive && leftAndRightSelector(org)) {
         survivors++;
       } else {
         org->alive = false;
