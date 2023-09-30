@@ -13,23 +13,22 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 3
+#define SIM_INTERNAL_MAX 8
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
 #define SIM_GEN_STEPS 150
-#define SIM_NUM_GENES 8
+#define SIM_NUM_GENES 32
 #define SIM_POPULATION 1000
 #define SIM_MAX_GENERATIONS 1000
 #define SIM_MUTATION_RATE 0.01f
 #define SIM_ENERGY_TO_MOVE 0.01f
 #define SIM_ENERGY_TO_REST 0.005f
-#define SIM_ENABLE_COLLISIONS true
 
 static Rect obstacles[2] = {
-  (Rect){ .x = 32, .y = 48, .w = 2, .h = 32 },
-  (Rect){ .x = 94, .y = 48, .w = 2, .h = 32 },
+    (Rect){.x = 32, .y = 48, .w = 2, .h = 32},
+    (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
 };
-static int obstaclesCount = 2; 
+static int obstaclesCount = 2;
 
 char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE", "IN_COLLIDE",
                                   "IN_ENERGY"};
@@ -179,6 +178,25 @@ void organismBuildNeuralNet(Organism *org) {
   // 16384); printf("Net sink is %p, source is %p\n", sink, source);
 }
 
+bool isPosInRect(Pos pos, Rect rect)
+{
+  return
+    pos.x >= rect.x &&
+    pos.x < rect.x + rect.w + 1 &&
+    pos.y >= rect.y &&
+    pos.y < rect.y + rect.h + 1;
+}
+
+bool isPosInObstacle(Pos pos)
+{
+  for (int i = 0; i < obstaclesCount; i++) {
+    if (isPosInRect(pos, obstacles[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void organismDestroyNeuralNet(Organism *org) {
   free(org->net.connections);
   free(org->net.neurons);
@@ -188,35 +206,29 @@ void organismDestroyNeuralNet(Organism *org) {
   org->net.neuronCount = 0;
 }
 
-Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount) {
+Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount, bool aliveOnly) {
   for (int i = 0; i < orgsCount; i++) {
     Organism *org = &orgs[i];
 
     if (pos.x == org->pos.x && pos.y == orgs->pos.y) {
-      return org;
+      if ((aliveOnly && org->alive) || !aliveOnly)
+        return org;
     }
   }
   return NULL;
 }
 
-void organismMoveBackIntoZone(Organism* org)
-{
-  if (org->pos.x >= SIM_WIDTH)
-      {
-        org->pos.x = SIM_WIDTH - 1;
-      }
-      else if (org->pos.x < 0)
-      {
-        org->pos.x = 0;
-      }
-      if (org->pos.y >= SIM_HEIGHT)
-      {
-        org->pos.y = SIM_HEIGHT - 1;
-      }
-      else if (org->pos.y < 0)
-      {
-        org->pos.y = 0;
-      }
+void organismMoveBackIntoZone(Organism *org) {
+  if (org->pos.x >= SIM_WIDTH) {
+    org->pos.x = SIM_WIDTH - 1;
+  } else if (org->pos.x < 0) {
+    org->pos.x = 0;
+  }
+  if (org->pos.y >= SIM_HEIGHT) {
+    org->pos.y = SIM_HEIGHT - 1;
+  } else if (org->pos.y < 0) {
+    org->pos.y = 0;
+  }
 }
 
 void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
@@ -225,9 +237,7 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   if (!org->alive)
     return;
 
-#if SIM_ENABLE_COLLISIONS
   Pos originalPosition = org->pos;
-#endif
 
   // reset
   for (int i = 0; i < org->net.connectionCount; i++) {
@@ -376,104 +386,15 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
     org->energyLevel = 1.0f;
   }
 
-#if SIM_ENABLE_COLLISIONS
-  // if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount) != NULL) {
-  //   // collision
-  //   org->pos = originalPosition;
-  //   org->didCollide = true;
-
-  //   int maxPos = 0;
-  //   Pos otherPositions[8] = {0};
-
-  //   if (org->pos.x > 0 && org->pos.y > 0) {
-  //     otherPositions[maxPos++] =
-  //         (Pos){.x = org->pos.x - 1, .y = org->pos.y - 1};
-  //   }
-  //   if (org->pos.x > 0 && org->pos.y + 1 < SIM_HEIGHT) {
-  //     otherPositions[maxPos++] =
-  //         (Pos){.x = org->pos.x - 1, .y = org->pos.y + 1};
-  //   }
-  //   if (org->pos.x > 0) {
-  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x - 1, .y = org->pos.y};
-  //   }
-  //   if (org->pos.x + 1 < SIM_WIDTH && org->pos.y > 0) {
-  //     otherPositions[maxPos++] =
-  //         (Pos){.x = org->pos.x + 1, .y = org->pos.y - 1};
-  //   }
-  //   if (org->pos.x + 1 < SIM_WIDTH && org->pos.y + 1 < SIM_HEIGHT) {
-  //     otherPositions[maxPos++] =
-  //         (Pos){.x = org->pos.x + 1, .y = org->pos.y + 1};
-  //   }
-  //   if (org->pos.x + 1 < SIM_WIDTH) {
-  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x + 1, .y = org->pos.y};
-  //   }
-  //   if (org->pos.y > 0) {
-  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x, .y = org->pos.y - 1};
-  //   }
-  //   if (org->pos.y + 1 < SIM_WIDTH) {
-  //     otherPositions[maxPos++] = (Pos){.x = org->pos.x, .y = org->pos.y + 1};
-  //   }
-
-  //   bool foundFreePosition = false;
-  //   for (int i = 0; i < maxPos; i++) {
-  //     Pos testPos = otherPositions[i];
-  //     if (getOrganismByPos(testPos, otherOrgs, otherOrgsCount) == NULL) {
-  //       foundFreePosition = true;
-  //       org->pos = testPos;
-  //       break;
-  //     }
-  //   }
-
-  //   if (!foundFreePosition) {
-  //     // crushed; nowhere to move
-  //     org->alive = false;
-  //   }
-  // }
-
-
-// for (int i = 0; i < otherOrgsCount; i++) {
-//   Organism *otherOrg = &otherOrgs[i];
-
-//   if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y) {
-//     org->didCollide = true;
-//     otherOrg->didCollide = true;
-
-//     org->pos = originalPosition;
-
-//     for (int j = 0; j < otherOrgsCount; j++) {
-//       otherOrg = &otherOrgs[j];
-//       if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y) {
-//         // crushed
-//         org->alive = false;
-//         return;
-//       }
-//     }
-
-//     break;
-//   }
-// }
-
-//   // OLD COLLISION ALG:
-searchForCollisions:
-  for (int i = 0; i < otherOrgsCount; i++)
-  {
-    Organism *otherOrg = &otherOrgs[i];
-    // if (!otherOrg->alive)
-      // continue;
-    if (otherOrg->pos.x == org->pos.x && otherOrg->pos.y == org->pos.y)
-    {
-      org->didCollide = true;
-      otherOrg->didCollide = true;
-      // collision
-      org->pos.x += rand() % 3 - 1;
-      org->pos.y += rand() % 3 - 1;
-
-      organismMoveBackIntoZone(org);
-
-      goto searchForCollisions;
+  // collisions
+  if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) || isPosInObstacle(org->pos)) {
+    org->didCollide = true;
+    org->pos = originalPosition;
+    if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true)|| isPosInObstacle(org->pos)) {
+      org->alive = false;
+      return;
     }
   }
-#endif
 }
 
 uint32_t rand_uint32(void) {
@@ -490,13 +411,19 @@ Genome makeRandomGenome(uint8_t numGenes) {
   return genome;
 }
 
-Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight) {
+Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight, Organism* otherOrgs, int otherOrgsCount) {
   Organism org = {
       .pos = (Pos){.x = rand() % worldWidth, .y = rand() % worldHeight},
       .genome = makeRandomGenome(numGenes),
       .alive = true,
       .didCollide = false,
       .energyLevel = 1.0};
+  
+  while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) || isPosInObstacle(org.pos))
+  {
+    org.pos.x = rand() % worldWidth;
+    org.pos.y = rand() % worldWidth;
+  }
 
   organismBuildNeuralNet(&org);
 
@@ -519,7 +446,7 @@ Genome mutate(Genome genome, float mutationRate) {
 }
 
 Organism makeOffspring(Organism *a, Organism *b, int worldWidth,
-                       int worldHeight) {
+                       int worldHeight, Organism* otherOrgs, int otherOrgsCount) {
   Organism org = {
       .pos =
           (Pos){
@@ -530,6 +457,12 @@ Organism makeOffspring(Organism *a, Organism *b, int worldWidth,
       .alive = true,
       .didCollide = false,
       .energyLevel = 1.0};
+
+  while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) || isPosInObstacle(org.pos))
+  {
+    org.pos.x = rand() % worldWidth;
+    org.pos.y = rand() % worldWidth;
+  }
 
   organismBuildNeuralNet(&org);
 
@@ -576,17 +509,16 @@ void dumpOrganismNet(Organism *org) {
 }
 
 bool bottomSelector(Organism *org) {
-  return org->alive && (org->pos.x < (SIM_WIDTH / 2)) &&
+  return (org->pos.x < (SIM_WIDTH / 2)) &&
          (org->pos.y < (SIM_HEIGHT / 2));
 }
 
 bool centerXSelector(Organism *org) {
-  return org->alive &&
-         ((org->pos.x > (SIM_WIDTH / 3)) && (org->pos.x < (2 * SIM_WIDTH / 3)));
+  return ((org->pos.x > (SIM_WIDTH / 3)) && (org->pos.x < (2 * SIM_WIDTH / 3)));
 }
 
 bool centerYSelector(Organism *org) {
-  return org->alive && ((org->pos.y > (SIM_HEIGHT / 3)) &&
+  return ((org->pos.y > (SIM_HEIGHT / 3)) &&
                         (org->pos.y < (2 * SIM_HEIGHT / 3)));
 }
 
@@ -599,12 +531,16 @@ bool centerSelector(Organism *org) {
 }
 
 bool triangleSelector(Organism *org) {
-  return org->alive && (org->pos.x >= org->pos.y);
+  return (org->pos.x >= org->pos.y);
+}
+
+bool leftSelector(Organism* org)
+{
+  return org->pos.x < SIM_WIDTH * 0.2;
 }
 
 bool leftAndRightSelector(Organism *org) {
-  return org->alive &&
-         (org->pos.x < SIM_WIDTH * 0.2 || org->pos.x > SIM_WIDTH * 0.8);
+  return (org->pos.x < SIM_WIDTH * 0.2 || org->pos.x > SIM_WIDTH * 0.8);
 }
 
 // bool selector(Organism *org, int step) {
@@ -682,7 +618,7 @@ int main(int argc, char *argv[]) {
   visSetObstacles(obstacles, obstaclesCount);
 
   for (int i = 0; i < SIM_POPULATION; i++) {
-    orgs[i] = makeRandomOrganism(SIM_NUM_GENES, SIM_WIDTH, SIM_HEIGHT);
+    orgs[i] = makeRandomOrganism(SIM_NUM_GENES, SIM_WIDTH, SIM_HEIGHT, orgs, i);
   }
 
   for (int g = 0; g < SIM_MAX_GENERATIONS; g++) {
@@ -690,13 +626,26 @@ int main(int argc, char *argv[]) {
 
     for (int step = 0; step < SIM_GEN_STEPS; step++) {
 
-      // if (g == SIM_MAX_GENERATIONS - 1) {
-      visSetStep(step);
+      if (g == SIM_MAX_GENERATIONS - 1) {
+        visSetStep(step);
         visDrawStep(orgs, SIM_POPULATION);
-      // }
+      }
 
       for (int i = 0; i < SIM_POPULATION; i++) {
         organismRunStep(&orgs[i], orgs, i, step, SIM_GEN_STEPS);
+      }
+
+      // assert that we don't have two organisms occupying the same cell
+      int occupiedCells = 0;
+      for (int i = 0; i < SIM_POPULATION; i++) {
+        if (!orgs[i].alive)
+          continue;
+        if (getOrganismByPos(orgs[i].pos, orgs, i, true)) {
+          occupiedCells++;
+        }
+      }
+      if (occupiedCells) {
+        printf("Found %d occupied cells\n", occupiedCells);
       }
 
       if (interrupted)
@@ -708,12 +657,20 @@ int main(int argc, char *argv[]) {
     }
 
     int survivors = 0;
+    int deadBeforeSelection = 0;
+    int deadAfterSelection = 0;
     for (int i = 0; i < SIM_POPULATION; i++) {
       Organism *org = &orgs[i];
 
-      if (org->alive && leftAndRightSelector(org)) {
+      if (!org->alive) {
+        deadBeforeSelection++;
+        continue;
+      }
+
+      if (centerSelector(org)) {
         survivors++;
       } else {
+        deadAfterSelection++;
         org->alive = false;
       }
     }
@@ -721,8 +678,8 @@ int main(int argc, char *argv[]) {
     visDrawStep(orgs, SIM_POPULATION);
 
     float survivalRate = (float)survivors * 100.0f / SIM_POPULATION;
-    printf("Gen %d survival rate is %d/%d (%03.2f%%)\n", g, survivors,
-           SIM_POPULATION, survivalRate);
+    printf("Gen %d survival rate is %d/%d (%03.2f%%) with %d dead before and %d dead after selection.\n", g, survivors,
+           SIM_POPULATION, survivalRate, deadBeforeSelection, deadAfterSelection);
 
     if (survivors <= 1) {
       break;
@@ -731,7 +688,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < SIM_POPULATION; i++) {
       Organism *a, *b;
       findMates(orgs, SIM_POPULATION, &a, &b);
-      nextGenOrgs[i] = makeOffspring(a, b, SIM_WIDTH, SIM_HEIGHT);
+      nextGenOrgs[i] = makeOffspring(a, b, SIM_WIDTH, SIM_HEIGHT, orgs, i);
     }
 
     for (int i = 0; i < SIM_POPULATION; i++) {

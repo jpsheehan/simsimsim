@@ -63,10 +63,11 @@ void visDrawShell(void)
                                      .w = simW * SIM_SCALE + 2,
                                      .h = simH * SIM_SCALE + 2});
 
+    // draw obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++)
     {
         Rect *r = &OBSTACLES[i];
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
         SDL_RenderFillRect(renderer, &(SDL_Rect){
                                          .x = paddingLeft + r->x * SIM_SCALE,
                                          .y = paddingTop + r->y * SIM_SCALE,
