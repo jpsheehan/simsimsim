@@ -28,7 +28,7 @@ static Rect obstacles[2] = {
     (Rect){.x = 32, .y = 48, .w = 2, .h = 32},
     (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
 };
-static int obstaclesCount = 2;
+static int obstaclesCount = 0;
 
 char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE", "IN_COLLIDE",
                                   "IN_ENERGY"};
@@ -178,17 +178,12 @@ void organismBuildNeuralNet(Organism *org) {
   // 16384); printf("Net sink is %p, source is %p\n", sink, source);
 }
 
-bool isPosInRect(Pos pos, Rect rect)
-{
-  return
-    pos.x >= rect.x &&
-    pos.x < rect.x + rect.w + 1 &&
-    pos.y >= rect.y &&
-    pos.y < rect.y + rect.h + 1;
+bool isPosInRect(Pos pos, Rect rect) {
+  return pos.x >= rect.x && pos.x < rect.x + rect.w + 1 && pos.y >= rect.y &&
+         pos.y < rect.y + rect.h + 1;
 }
 
-bool isPosInObstacle(Pos pos)
-{
+bool isPosInObstacle(Pos pos) {
   for (int i = 0; i < obstaclesCount; i++) {
     if (isPosInRect(pos, obstacles[i])) {
       return true;
@@ -206,7 +201,8 @@ void organismDestroyNeuralNet(Organism *org) {
   org->net.neuronCount = 0;
 }
 
-Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount, bool aliveOnly) {
+Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount,
+                           bool aliveOnly) {
   for (int i = 0; i < orgsCount; i++) {
     Organism *org = &orgs[i];
 
@@ -388,10 +384,12 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   }
 
   // collisions
-  if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) || isPosInObstacle(org->pos)) {
+  if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
+      isPosInObstacle(org->pos)) {
     org->didCollide = true;
     org->pos = originalPosition;
-    if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true)|| isPosInObstacle(org->pos)) {
+    if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
+        isPosInObstacle(org->pos)) {
       org->alive = false;
       return;
     }
@@ -412,16 +410,17 @@ Genome makeRandomGenome(uint8_t numGenes) {
   return genome;
 }
 
-Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight, Organism* otherOrgs, int otherOrgsCount) {
+Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight,
+                            Organism *otherOrgs, int otherOrgsCount) {
   Organism org = {
       .pos = (Pos){.x = rand() % worldWidth, .y = rand() % worldHeight},
       .genome = makeRandomGenome(numGenes),
       .alive = true,
       .didCollide = false,
       .energyLevel = 1.0};
-  
-  while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) || isPosInObstacle(org.pos))
-  {
+
+  while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
+         isPosInObstacle(org.pos)) {
     org.pos.x = rand() % worldWidth;
     org.pos.y = rand() % worldWidth;
   }
@@ -447,7 +446,8 @@ Genome mutate(Genome genome, float mutationRate) {
 }
 
 Organism makeOffspring(Organism *a, Organism *b, int worldWidth,
-                       int worldHeight, Organism* otherOrgs, int otherOrgsCount) {
+                       int worldHeight, Organism *otherOrgs,
+                       int otherOrgsCount) {
   Organism org = {
       .pos =
           (Pos){
@@ -459,8 +459,8 @@ Organism makeOffspring(Organism *a, Organism *b, int worldWidth,
       .didCollide = false,
       .energyLevel = 1.0};
 
-  while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) || isPosInObstacle(org.pos))
-  {
+  while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
+         isPosInObstacle(org.pos)) {
     org.pos.x = rand() % worldWidth;
     org.pos.y = rand() % worldWidth;
   }
@@ -510,8 +510,7 @@ void dumpOrganismNet(Organism *org) {
 }
 
 bool bottomSelector(Organism *org) {
-  return (org->pos.x < (SIM_WIDTH / 2)) &&
-         (org->pos.y < (SIM_HEIGHT / 2));
+  return (org->pos.x < (SIM_WIDTH / 2)) && (org->pos.y < (SIM_HEIGHT / 2));
 }
 
 bool centerXSelector(Organism *org) {
@@ -520,7 +519,7 @@ bool centerXSelector(Organism *org) {
 
 bool centerYSelector(Organism *org) {
   return ((org->pos.y > (SIM_HEIGHT / 3)) &&
-                        (org->pos.y < (2 * SIM_HEIGHT / 3)));
+          (org->pos.y < (2 * SIM_HEIGHT / 3)));
 }
 
 bool collidedSelector(Organism *org) { return org->didCollide; }
@@ -531,14 +530,9 @@ bool centerSelector(Organism *org) {
   return centerXSelector(org) && centerYSelector(org);
 }
 
-bool triangleSelector(Organism *org) {
-  return (org->pos.x >= org->pos.y);
-}
+bool triangleSelector(Organism *org) { return (org->pos.x >= org->pos.y); }
 
-bool leftSelector(Organism* org)
-{
-  return org->pos.x < SIM_WIDTH * 0.2;
-}
+bool leftSelector(Organism *org) { return org->pos.x < SIM_WIDTH * 0.2; }
 
 bool leftAndRightSelector(Organism *org) {
   return (org->pos.x < SIM_WIDTH * 0.2 || org->pos.x > SIM_WIDTH * 0.8);
@@ -627,10 +621,8 @@ int main(int argc, char *argv[]) {
 
     for (int step = 0; step < SIM_GEN_STEPS; step++) {
 
-      if (g == SIM_MAX_GENERATIONS - 1) {
-        visSetStep(step);
-        visDrawStep(orgs, SIM_POPULATION);
-      }
+      visSetStep(step);
+      visDrawStep(orgs, SIM_POPULATION, false);
 
       for (int i = 0; i < SIM_POPULATION; i++) {
         organismRunStep(&orgs[i], orgs, i, step, SIM_GEN_STEPS);
@@ -649,11 +641,11 @@ int main(int argc, char *argv[]) {
         printf("Found %d occupied cells\n", occupiedCells);
       }
 
-      if (interrupted)
+      if (interrupted || visGetWantsToQuit())
         break;
     }
 
-    if (interrupted) {
+    if (interrupted || visGetWantsToQuit()) {
       break;
     }
 
@@ -676,11 +668,13 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    visDrawStep(orgs, SIM_POPULATION);
+    visDrawStep(orgs, SIM_POPULATION, true);
 
     float survivalRate = (float)survivors * 100.0f / SIM_POPULATION;
-    printf("Gen %d survival rate is %d/%d (%03.2f%%) with %d dead before and %d dead after selection.\n", g, survivors,
-           SIM_POPULATION, survivalRate, deadBeforeSelection, deadAfterSelection);
+    printf("Gen %d survival rate is %d/%d (%03.2f%%) with %d dead before and "
+           "%d dead after selection.\n",
+           g, survivors, SIM_POPULATION, survivalRate, deadBeforeSelection,
+           deadAfterSelection);
 
     if (survivors <= 1) {
       break;
@@ -698,7 +692,7 @@ int main(int argc, char *argv[]) {
 
     memcpy(orgs, nextGenOrgs, sizeof(Organism) * SIM_POPULATION);
 
-    if (interrupted || survivors <= 1)
+    if (interrupted || survivors <= 1 || visGetWantsToQuit())
       break;
   }
 
