@@ -381,6 +381,7 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   if (org->energyLevel <= 0.0f) {
     org->alive = false;
     org->energyLevel = 0.0f;
+    org->pos = originalPosition;
     return;
   } else if (org->energyLevel > 1.0f) {
     org->energyLevel = 1.0f;
