@@ -22,7 +22,7 @@
 #define SIM_MAX_GENERATIONS 1000
 #define SIM_MUTATION_RATE 0.01f
 #define SIM_ENERGY_TO_MOVE 0.01f
-#define SIM_ENERGY_TO_REST 0.005f
+#define SIM_ENERGY_TO_REST 0.01f
 
 static Rect obstacles[2] = {
     (Rect){.x = 32, .y = 48, .w = 2, .h = 32},
@@ -30,10 +30,41 @@ static Rect obstacles[2] = {
 };
 static int obstaclesCount = 0;
 
-char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE", "IN_COLLIDE",
-                                  "IN_ENERGY"};
+static char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE",
+                                         "IN_COLLIDE", "IN_ENERGY"};
 
-char *OutputTypeStrings[OUT_MAX] = {"MOVE_X", "MOVE_Y", "MOVE_RANDOM"};
+static char *OutputTypeStrings[OUT_MAX] = {"MOVE_X", "MOVE_Y", "MOVE_RANDOM",
+                                           "MOVE_FORWARD_BACKWARD",
+                                           "TURN_LEFT_RIGHT"};
+
+Direction turnLeft(Direction dir) {
+  return (Direction)((dir + (DIR_MAX - 1)) % DIR_MAX);
+}
+
+Direction turnRight(Direction dir) { return (Direction)((dir + 1) % DIR_MAX); }
+
+Direction turnBackwards(Direction dir) {
+  return (Direction)((dir + (DIR_MAX >> 2)) % DIR_MAX);
+}
+
+Direction getRandomDirection(void) { return (Direction)(rand() % DIR_MAX); }
+
+Pos addPos(Pos a, Pos b) { return (Pos){.x = a.x + b.x, .y = a.y + b.y}; }
+
+Pos moveInDirection(Pos pos, Direction dir) {
+  Pos lookup[DIR_MAX] = {
+      (Pos){.x = 0, .y = -1},  // N
+      (Pos){.x = 1, .y = -1},  // NE
+      (Pos){.x = 1, .y = 0},   // E
+      (Pos){.x = 1, .y = 1},   // SE
+      (Pos){.x = 0, .y = 1},   // S
+      (Pos){.x = -1, .y = 1},  // SW
+      (Pos){.x = -1, .y = 0},  // W
+      (Pos){.x = -1, .y = -1}, // NW
+  };
+
+  return addPos(pos, lookup[dir]);
+}
 
 Gene intToGene(uint32_t n) {
   return (Gene){
@@ -362,6 +393,22 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
         didMove = true;
       }
       break;
+    case OUT_MOVE_FORWARD_BACKWARD:
+      if (output->state >= 0.5f) {
+        org->pos = moveInDirection(org->pos, org->direction);
+        didMove = true;
+      } else if (fabs(output->state) <= 0.5f) {
+        org->pos = moveInDirection(org->pos, turnBackwards(org->direction));
+        didMove = true;
+      }
+      break;
+    case OUT_TURN_LEFT_RIGHT:
+      if (output->state <= 0.5f) {
+        org->direction = turnLeft(org->direction);
+      } else if (output->state >= 0.5f) {
+        org->direction = turnRight(org->direction);
+      }
+      break;
     }
   }
 
@@ -417,7 +464,8 @@ Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight,
       .genome = makeRandomGenome(numGenes),
       .alive = true,
       .didCollide = false,
-      .energyLevel = 1.0};
+      .energyLevel = 1.0,
+      .direction = getRandomDirection()};
 
   while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
          isPosInObstacle(org.pos)) {
@@ -457,7 +505,8 @@ Organism makeOffspring(Organism *a, Organism *b, int worldWidth,
       .genome = mutate(reproduce(&a->genome, &b->genome), SIM_MUTATION_RATE),
       .alive = true,
       .didCollide = false,
-      .energyLevel = 1.0};
+      .energyLevel = 1.0,
+      .direction = getRandomDirection()};
 
   while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
          isPosInObstacle(org.pos)) {
@@ -533,19 +582,11 @@ bool centerSelector(Organism *org) {
 bool triangleSelector(Organism *org) { return (org->pos.x >= org->pos.y); }
 
 bool leftSelector(Organism *org) { return org->pos.x < SIM_WIDTH * 0.2; }
+bool rightSelector(Organism *org) { return org->pos.x > SIM_WIDTH * 0.8; }
 
 bool leftAndRightSelector(Organism *org) {
-  return (org->pos.x < SIM_WIDTH * 0.2 || org->pos.x > SIM_WIDTH * 0.8);
+  return leftSelector(org) || rightSelector(org);
 }
-
-// bool selector(Organism *org, int step) {
-//   if (!org->alive)
-//     return false;
-//   if (step < (SIM_GEN_STEPS / 2)) {
-//     return org->pos.x < SIM_WIDTH / 2;
-//   }
-//   return org->pos.x >= SIM_WIDTH / 2;
-// }
 
 void findMates(Organism orgs[], int population, Organism **outA,
                Organism **outB) {
@@ -616,6 +657,9 @@ int main(int argc, char *argv[]) {
     orgs[i] = makeRandomOrganism(SIM_NUM_GENES, SIM_WIDTH, SIM_HEIGHT, orgs, i);
   }
 
+  float Ao10Buffer[10] = {0.0f};
+  int Ao10Idx = 0;
+
   for (int g = 0; g < SIM_MAX_GENERATIONS; g++) {
     visSetGeneration(g);
 
@@ -660,7 +704,7 @@ int main(int argc, char *argv[]) {
         continue;
       }
 
-      if (centerSelector(org)) {
+      if (rightSelector(org)) {
         survivors++;
       } else {
         deadAfterSelection++;
@@ -671,10 +715,21 @@ int main(int argc, char *argv[]) {
     visDrawStep(orgs, SIM_POPULATION, true);
 
     float survivalRate = (float)survivors * 100.0f / SIM_POPULATION;
-    printf("Gen %d survival rate is %d/%d (%03.2f%%) with %d dead before and "
+
+    Ao10Buffer[Ao10Idx] = survivalRate;
+    Ao10Idx = (Ao10Idx + 1) % 10;
+
+    float Ao10 = 0.0f;
+    for (int a = 0; a < 10; a++) {
+      Ao10 += Ao10Buffer[a];
+    }
+    Ao10 /= (float)(g < 10 ? g + 1 : 10);
+
+    printf("Gen %d survival rate is %d/%d (%03.2f%%, %03.2f%% Ao10) with %d "
+           "dead before and "
            "%d dead after selection.\n",
-           g, survivors, SIM_POPULATION, survivalRate, deadBeforeSelection,
-           deadAfterSelection);
+           g, survivors, SIM_POPULATION, survivalRate, Ao10,
+           deadBeforeSelection, deadAfterSelection);
 
     if (survivors <= 1) {
       break;

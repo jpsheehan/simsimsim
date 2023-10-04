@@ -19,6 +19,8 @@ typedef enum
   OUT_MOVE_X,
   OUT_MOVE_Y,
   OUT_MOVE_RANDOM,
+  OUT_MOVE_FORWARD_BACKWARD,
+  OUT_TURN_LEFT_RIGHT,
   OUT_MAX
 } OutputType;
 
@@ -43,6 +45,18 @@ typedef struct
     int16_t h;
 } Rect;
 
+typedef enum
+{
+  DIR_N,
+  DIR_NE,
+  DIR_E,
+  DIR_SE,
+  DIR_S,
+  DIR_SW,
+  DIR_W,
+  DIR_NW,
+  DIR_MAX
+} Direction;
 
 typedef struct
 {
@@ -104,6 +118,7 @@ typedef struct
   bool alive;
   bool didCollide;
   float energyLevel;
+  Direction direction;
 } Organism;
 
 typedef struct
