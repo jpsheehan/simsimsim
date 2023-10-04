@@ -237,7 +237,7 @@ Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount,
   for (int i = 0; i < orgsCount; i++) {
     Organism *org = &orgs[i];
 
-    if (pos.x == org->pos.x && pos.y == orgs->pos.y) {
+    if (pos.x == org->pos.x && pos.y == org->pos.y) {
       if ((aliveOnly && org->alive) || !aliveOnly)
         return org;
     }
@@ -246,6 +246,7 @@ Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount,
 }
 
 void organismMoveBackIntoZone(Organism *org) {
+  // Pos original = org->pos;
   if (org->pos.x >= SIM_WIDTH) {
     org->pos.x = SIM_WIDTH - 1;
   } else if (org->pos.x < 0) {
@@ -256,6 +257,9 @@ void organismMoveBackIntoZone(Organism *org) {
   } else if (org->pos.y < 0) {
     org->pos.y = 0;
   }
+  // if (org->pos.x != original.x || org->pos.y != original.y) {
+  //   printf("Moved back into zone: (%d, %d)\n", org->pos.x, org->pos.y);
+  // }
 }
 
 void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
@@ -412,9 +416,6 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
     }
   }
 
-  // enforce collisions with edge
-  organismMoveBackIntoZone(org);
-
   if (didMove) {
     org->energyLevel -= SIM_ENERGY_TO_MOVE;
   } else {
@@ -431,6 +432,14 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
   }
 
   // collisions
+  organismMoveBackIntoZone(org);
+  // while (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
+  //        isPosInObstacle(org->pos)) {
+  //   org->didCollide = true;
+  //   org->pos.x += rand() % 3 - 1;
+  //   org->pos.y += rand() % 3 - 1;
+  //   organismMoveBackIntoZone(org);
+  // }
   if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
       isPosInObstacle(org->pos)) {
     org->didCollide = true;
@@ -672,25 +681,27 @@ int main(int argc, char *argv[]) {
         organismRunStep(&orgs[i], orgs, i, step, SIM_GEN_STEPS);
       }
 
-      // assert that we don't have two organisms occupying the same cell
-      int occupiedCells = 0;
-      for (int i = 0; i < SIM_POPULATION; i++) {
-        if (!orgs[i].alive)
-          continue;
-        if (getOrganismByPos(orgs[i].pos, orgs, i, true)) {
-          occupiedCells++;
-        }
-      }
-      if (occupiedCells) {
-        printf("Found %d occupied cells\n", occupiedCells);
-      }
-
       if (interrupted || visGetWantsToQuit())
         break;
     }
 
     if (interrupted || visGetWantsToQuit()) {
       break;
+    }
+
+    // assert that we don't have two organisms occupying the same cell
+    int occupiedCells = 0;
+    for (int i = 0; i < SIM_POPULATION; i++) {
+      if (!orgs[i].alive)
+        continue;
+      // printf("Org #%d has pos (%d, %d) at end of gen %d\n", i, orgs[i].pos.x,
+      //        orgs[i].pos.y, g);
+      if (getOrganismByPos(orgs[i].pos, orgs, i, true)) {
+        occupiedCells++;
+      }
+    }
+    if (occupiedCells) {
+      printf("Found %d occupied cells\n", occupiedCells);
     }
 
     int survivors = 0;
