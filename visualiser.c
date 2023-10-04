@@ -7,9 +7,10 @@
 #include "sim.h"
 #include "visualiser.h"
 
-#define WIN_W 320
-#define WIN_H 320
-#define SIM_SCALE 2
+#define WIN_W 480
+#define WIN_H 480
+#define SIM_SCALE 3
+#define FPS 60
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
@@ -141,7 +142,7 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw) {
   }
 
   SDL_RenderPresent(renderer);
-  SDL_Delay(1000 / 30);
+  SDL_Delay(1000 / FPS);
 }
 
 void visDestroy(void) {

@@ -13,16 +13,18 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 8
+#define SIM_INTERNAL_MAX 2
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
-#define SIM_GEN_STEPS 150
-#define SIM_NUM_GENES 32
+#define SIM_GEN_STEPS 300
+#define SIM_NUM_GENES 4
 #define SIM_POPULATION 1000
 #define SIM_MAX_GENERATIONS 1000
 #define SIM_MUTATION_RATE 0.01f
 #define SIM_ENERGY_TO_MOVE 0.01f
 #define SIM_ENERGY_TO_REST 0.01f
+
+#define SIM_COLLISION_DEATHS false
 
 static Rect obstacles[2] = {
     (Rect){.x = 32, .y = 48, .w = 2, .h = 32},
@@ -30,12 +32,17 @@ static Rect obstacles[2] = {
 };
 static int obstaclesCount = 0;
 
-static char *InputTypeStrings[IN_MAX] = {"WORLD_X", "WORLD_Y", "IN_AGE",
-                                         "IN_COLLIDE", "IN_ENERGY"};
+static char *InputTypeStrings[IN_MAX] = {"WORLD_X",
+                                         "WORLD_Y",
+                                         "IN_AGE",
+                                         "IN_COLLIDE",
+                                         "IN_ENERGY",
+                                         "VISION_FORWARD",
+                                         "IN_PROXIMITY_TO_NEAREST_EDGE"};
 
-static char *OutputTypeStrings[OUT_MAX] = {"MOVE_X", "MOVE_Y", "MOVE_RANDOM",
-                                           "MOVE_FORWARD_BACKWARD",
-                                           "TURN_LEFT_RIGHT"};
+static char *OutputTypeStrings[OUT_MAX] = {
+    "MOVE_X",          "MOVE_Y",     "MOVE_RANDOM", "MOVE_FORWARD_BACKWARD",
+    "TURN_LEFT_RIGHT", "TURN_RANDOM"};
 
 Direction turnLeft(Direction dir) {
   return (Direction)((dir + (DIR_MAX - 1)) % DIR_MAX);
@@ -305,9 +312,28 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
     case IN_ENERGY:
       input->state = org->energyLevel;
       break;
+    case IN_VISION_FORWARD:
+      // TODO: this won't work since we need to split the organism run step into
+      // two stages... the inputs should operate on the old state and the
+      // outputs should operate on the new state
+      if (getOrganismByPos(
+              addPos(org->pos, moveInDirection(org->pos, org->direction)),
+              otherOrgs, otherOrgsCount, true)) {
+        input->state = 1.0f;
+      } else {
+        input->state = 0.0f;
+      }
+      break;
+    case IN_PROXIMITY_TO_NEAREST_EDGE: {
+      int nearX = SIM_WIDTH / 2 - abs(SIM_WIDTH / 2 - org->pos.x);
+      int nearY = SIM_HEIGHT / 2 - abs(SIM_HEIGHT / 2 - org->pos.y);
+      input->state = (nearX < nearY ? 1.0f - 2.0f * (float)nearX / SIM_WIDTH
+                                    : 1.0f - 2.0f * (float)nearY / SIM_HEIGHT);
+    } break;
     }
 
-    // printf("Excited neuron #%d to level %.2f\n", input->id, input->state);
+    if (fabs(input->state) > 1.0f)
+      printf("Excited neuron #%d to level %.2f\n", input->id, input->state);
   }
 
   // compute
@@ -413,6 +439,12 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
         org->direction = turnRight(org->direction);
       }
       break;
+    case OUT_TURN_RANDOM:
+      if (fabs(output->state) >= 0.5f) {
+        org->direction =
+            rand() % 2 ? turnLeft(org->direction) : turnRight(org->direction);
+      }
+      break;
     }
   }
 
@@ -433,13 +465,8 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
 
   // collisions
   organismMoveBackIntoZone(org);
-  // while (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
-  //        isPosInObstacle(org->pos)) {
-  //   org->didCollide = true;
-  //   org->pos.x += rand() % 3 - 1;
-  //   org->pos.y += rand() % 3 - 1;
-  //   organismMoveBackIntoZone(org);
-  // }
+
+#if SIM_COLLISION_DEATHS
   if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
       isPosInObstacle(org->pos)) {
     org->didCollide = true;
@@ -450,6 +477,15 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
       return;
     }
   }
+#else
+  while (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
+         isPosInObstacle(org->pos)) {
+    org->didCollide = true;
+    org->pos.x += rand() % 3 - 1;
+    org->pos.y += rand() % 3 - 1;
+    organismMoveBackIntoZone(org);
+  }
+#endif
 }
 
 uint32_t rand_uint32(void) {
@@ -582,10 +618,16 @@ bool centerYSelector(Organism *org) {
 
 bool collidedSelector(Organism *org) { return org->didCollide; }
 
-bool hasEnoughEnergy(Organism *org) { return org->energyLevel < 0.1f; }
+bool hasEnoughEnergy(Organism *org) { return org->energyLevel > 0.7f; }
 
 bool centerSelector(Organism *org) {
   return centerXSelector(org) && centerYSelector(org);
+}
+
+bool circleCenterSelector(Organism* org) {
+  return
+    ((SIM_WIDTH / 2 - org->pos.x) * (SIM_WIDTH / 2 - org->pos.x) +
+    (SIM_HEIGHT / 2 - org->pos.y) * (SIM_HEIGHT / 2 - org->pos.y)) < (32 * 32);
 }
 
 bool triangleSelector(Organism *org) { return (org->pos.x >= org->pos.y); }
@@ -715,7 +757,7 @@ int main(int argc, char *argv[]) {
         continue;
       }
 
-      if (rightSelector(org)) {
+      if (circleCenterSelector(org) /* && hasEnoughEnergy(org)*/) {
         survivors++;
       } else {
         deadAfterSelection++;

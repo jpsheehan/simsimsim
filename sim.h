@@ -11,6 +11,8 @@ typedef enum
   IN_AGE,
   IN_COLLIDE,
   IN_ENERGY,
+  IN_VISION_FORWARD,
+  IN_PROXIMITY_TO_NEAREST_EDGE,
   IN_MAX
 } InputType;
 
@@ -21,6 +23,7 @@ typedef enum
   OUT_MOVE_RANDOM,
   OUT_MOVE_FORWARD_BACKWARD,
   OUT_TURN_LEFT_RIGHT,
+  OUT_TURN_RANDOM,
   OUT_MAX
 } OutputType;
 
