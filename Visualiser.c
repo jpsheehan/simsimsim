@@ -5,14 +5,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "sim.h"
-#include "visualiser.h"
+#include "Simulator.h"
+#include "Visualiser.h"
 
 #define WIN_W 480
 #define WIN_H 480
 #define SIM_SCALE 3
 #define FPS 60
-#define SAVE_IMAGES true
+#define SAVE_IMAGES false
 
 #if SAVE_IMAGES
 #include <SDL_image.h>

@@ -2,13 +2,22 @@ CC=gcc
 CFLAGS=-g -Wall `pkg-config --cflags sdl2 SDL2_image`
 LFLAGS=-lm `pkg-config --libs sdl2 SDL2_image`
 
-life: sim.o visualiser.o
+life: main.c Direction.o Geometry.o Organism.o Simulator.o Visualiser.o 
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
 
-visualiser.o: visualiser.c *.h
+Visualiser.o: Visualiser.c *.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-sim.o: sim.c *.h
+Simulator.o: Simulator.c *.h
+	$(CC) $< $(CFLAGS) -c -o $@
+
+Geometry.o: Geometry.c Geometry.h Direction.h
+	$(CC) $< $(CFLAGS) -c -o $@
+
+Direction.o: Direction.c Direction.h
+	$(CC) $< $(CFLAGS) -c -o $@
+
+Organism.o: Organism.c Organism.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:

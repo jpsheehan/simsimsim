@@ -1,9 +1,9 @@
-#ifndef visualiser_h
-#define visualiser_h
+#ifndef Visualiser_h
+#define Visualiser_h
 
 #include <stdint.h>
 #include <SDL2/SDL.h>
-#include "sim.h"
+#include "Simulator.h"
 
 void visInit(uint32_t w, uint32_t h);
 void visDestroy(void);

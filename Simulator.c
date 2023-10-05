@@ -1,5 +1,3 @@
-#include "sim.h"
-#include "visualiser.h"
 #include <math.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -9,15 +7,19 @@
 #include <string.h>
 #include <time.h>
 
+#include "Simulator.h"
+#include "Visualiser.h"
+#include "Geometry.h"
+
 #define IN_BASE 0x8000
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 32
+#define SIM_INTERNAL_MAX 3
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
 #define SIM_GEN_STEPS 150
-#define SIM_NUM_GENES 128
+#define SIM_NUM_GENES 12
 #define SIM_POPULATION 1000
 #define SIM_MAX_GENERATIONS 100000
 #define SIM_MUTATION_RATE 0.01f
@@ -43,35 +45,6 @@ static char *InputTypeStrings[IN_MAX] = {"WORLD_X",
 static char *OutputTypeStrings[OUT_MAX] = {
     "MOVE_X",          "MOVE_Y",     "MOVE_RANDOM", "MOVE_FORWARD_BACKWARD",
     "TURN_LEFT_RIGHT", "TURN_RANDOM"};
-
-Direction turnLeft(Direction dir) {
-  return (Direction)((dir + (DIR_MAX - 1)) % DIR_MAX);
-}
-
-Direction turnRight(Direction dir) { return (Direction)((dir + 1) % DIR_MAX); }
-
-Direction turnBackwards(Direction dir) {
-  return (Direction)((dir + (DIR_MAX >> 2)) % DIR_MAX);
-}
-
-Direction getRandomDirection(void) { return (Direction)(rand() % DIR_MAX); }
-
-Pos addPos(Pos a, Pos b) { return (Pos){.x = a.x + b.x, .y = a.y + b.y}; }
-
-Pos moveInDirection(Pos pos, Direction dir) {
-  Pos lookup[DIR_MAX] = {
-      (Pos){.x = 0, .y = -1},  // N
-      (Pos){.x = 1, .y = -1},  // NE
-      (Pos){.x = 1, .y = 0},   // E
-      (Pos){.x = 1, .y = 1},   // SE
-      (Pos){.x = 0, .y = 1},   // S
-      (Pos){.x = -1, .y = 1},  // SW
-      (Pos){.x = -1, .y = 0},  // W
-      (Pos){.x = -1, .y = -1}, // NW
-  };
-
-  return addPos(pos, lookup[dir]);
-}
 
 Gene intToGene(uint32_t n) {
   return (Gene){
@@ -214,20 +187,6 @@ void organismBuildNeuralNet(Organism *org) {
 
   // Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount,
   // 16384); printf("Net sink is %p, source is %p\n", sink, source);
-}
-
-bool isPosInRect(Pos pos, Rect rect) {
-  return pos.x >= rect.x && pos.x < rect.x + rect.w + 1 && pos.y >= rect.y &&
-         pos.y < rect.y + rect.h + 1;
-}
-
-bool isPosInObstacle(Pos pos) {
-  for (int i = 0; i < obstaclesCount; i++) {
-    if (isPosInRect(pos, obstacles[i])) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void organismDestroyNeuralNet(Organism *org) {
@@ -468,18 +427,18 @@ void organismRunStep(Organism *org, Organism *otherOrgs, int otherOrgsCount,
 
 #if SIM_COLLISION_DEATHS
   if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
-      isPosInObstacle(org->pos)) {
+      isPosInAnyRect(org->pos, obstacles, obstaclesCount)) {
     org->didCollide = true;
     org->pos = originalPosition;
     if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
-        isPosInObstacle(org->pos)) {
+        isPosInAnyRect(org->pos, obstacles, obstaclesCount)) {
       org->alive = false;
       return;
     }
   }
 #else
   while (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
-         isPosInObstacle(org->pos)) {
+         isPosInAnyRect(org->pos, obstacles, obstaclesCount)) {
     org->didCollide = true;
     org->pos.x += rand() % 3 - 1;
     org->pos.y += rand() % 3 - 1;
@@ -513,7 +472,7 @@ Organism makeRandomOrganism(uint8_t numGenes, int worldWidth, int worldHeight,
       .direction = getRandomDirection()};
 
   while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
-         isPosInObstacle(org.pos)) {
+         isPosInAnyRect(org.pos, obstacles, obstaclesCount)) {
     org.pos.x = rand() % worldWidth;
     org.pos.y = rand() % worldWidth;
   }
@@ -554,7 +513,7 @@ Organism makeOffspring(Organism *a, Organism *b, int worldWidth,
       .direction = getRandomDirection()};
 
   while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
-         isPosInObstacle(org.pos)) {
+         isPosInAnyRect(org.pos, obstacles, obstaclesCount)) {
     org.pos.x = rand() % worldWidth;
     org.pos.y = rand() % worldWidth;
   }
@@ -693,25 +652,14 @@ static volatile bool interrupted = false;
 
 void signalHandler(int sig) { interrupted = true; }
 
-int main(int argc, char *argv[]) {
+void runSimulation(Simulation sim)
+{
   visInit(SIM_WIDTH, SIM_HEIGHT);
   signal(SIGINT, &signalHandler);
 
-  int seed;
-
-  if (argc == 2) 
-  {
-    if (sscanf(argv[1], "%d", &seed) != 1) {
-      fprintf(stderr, "Could not parse seed from argument.\n");
-      seed = time(NULL);
-    }
-  } else {
-    seed = time(NULL);
-  }
-
-  srand(seed);
-  printf("Seed is %d\n", seed);
-  visSetSeed(seed);
+  srand(sim.seed);
+  printf("Seed is %d\n", sim.seed);
+  visSetSeed(sim.seed);
 
   Organism *orgs = calloc(SIM_POPULATION, sizeof(Organism));
   Organism *nextGenOrgs = calloc(SIM_POPULATION, sizeof(Organism));
@@ -828,6 +776,4 @@ int main(int argc, char *argv[]) {
 
   free(orgs);
   free(nextGenOrgs);
-
-  return EXIT_SUCCESS;
 }

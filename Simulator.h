@@ -1,8 +1,11 @@
-#ifndef sim_h
-#define sim_h
+#ifndef Simulator_h
+#define Simulator_h
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "Geometry.h"
+#include "Direction.h"
+#include "Organism.h"
 
 typedef enum
 {
@@ -26,40 +29,6 @@ typedef enum
   OUT_TURN_RANDOM,
   OUT_MAX
 } OutputType;
-
-
-typedef struct
-{
-  int16_t x;
-  int16_t y;
-} Pos;
-
-typedef struct
-{
-  uint16_t w;
-  uint16_t h;
-} Size;
-
-typedef struct
-{
-    int16_t x;
-    int16_t y;
-    int16_t w;
-    int16_t h;
-} Rect;
-
-typedef enum
-{
-  DIR_N,
-  DIR_NE,
-  DIR_E,
-  DIR_SE,
-  DIR_S,
-  DIR_SW,
-  DIR_W,
-  DIR_NW,
-  DIR_MAX
-} Direction;
 
 typedef struct
 {
@@ -133,6 +102,10 @@ typedef struct
 typedef struct
 {
   Size size;
+  int seed;
 } Simulation;
+
+void runSimulation(Simulation);
+
 
 #endif
