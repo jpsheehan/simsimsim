@@ -1,6 +1,7 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_video.h>
+#include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -11,19 +12,33 @@
 #define WIN_H 480
 #define SIM_SCALE 3
 #define FPS 60
+#define SAVE_IMAGES true
+
+#if SAVE_IMAGES
+#include <SDL_image.h>
+#endif
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static uint32_t generation;
 static uint32_t step;
+static int seed;
 static int paddingLeft, paddingTop, simW, simH;
 static Rect *OBSTACLES = NULL;
 static int OBSTACLE_COUNT = 0;
 static bool playSteps = true;
 static bool wantsToQuit = false;
+static SDL_Texture* fileTexture = NULL;
+static SDL_Surface* fileSurface = NULL;
+
 
 void visDrawShell(void);
 void visSetTitle(void);
+
+void visSetSeed(int s)
+{
+  seed = s;
+}
 
 void visInit(uint32_t w, uint32_t h)
 {
@@ -32,6 +47,13 @@ void visInit(uint32_t w, uint32_t h)
     fprintf(stderr, "Could not init SDL\n");
     exit(1);
   }
+
+#if SAVE_IMAGES
+  if (!IMG_Init(IMG_INIT_JPG)) {
+    fprintf(stderr, "Coult not init img\n");
+    exit(1);
+  }
+#endif
 
   window =
       SDL_CreateWindow("Visualiser", SDL_WINDOWPOS_UNDEFINED,
@@ -56,6 +78,11 @@ void visInit(uint32_t w, uint32_t h)
 
   visDrawShell();
   SDL_RenderPresent(renderer);
+
+  fileTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_TARGET, WIN_W, WIN_H);
+  int width, height;
+  SDL_QueryTexture(fileTexture, NULL, NULL, &width, &height);
+  fileSurface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
 }
 
 void visDrawShell(void)
@@ -132,6 +159,8 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
 {
   handleEvents();
 
+  SDL_SetRenderTarget(renderer, fileTexture);
+
   if (!forceDraw && !playSteps)
   {
     return;
@@ -179,13 +208,38 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
   }
 
   SDL_RenderPresent(renderer);
-  SDL_Delay(1000 / FPS);
+
+#if SAVE_IMAGES
+  if (forceDraw) {
+    char filename[128] = { '\0' };
+    snprintf(filename, 128, "images/%d_%08d_%03d.jpg", seed, generation, step);
+
+    SDL_Texture* target = SDL_GetRenderTarget(renderer);
+    SDL_SetRenderTarget(renderer, fileTexture);
+    SDL_RenderReadPixels(renderer, NULL, fileSurface->format->format, fileSurface->pixels, fileSurface->pitch);
+    IMG_SavePNG(fileSurface, filename);
+    SDL_SetRenderTarget(renderer, target);
+  }
+#endif
+
+  SDL_SetRenderTarget(renderer, NULL);
+  SDL_Rect rect = { .x = 0, .y = 0, .w = WIN_W, .h = WIN_H};
+  SDL_RenderCopy(renderer, fileTexture, &rect, &rect);
+  SDL_RenderPresent(renderer);
+
+  // SDL_Delay(1000 / FPS);
 }
 
 void visDestroy(void)
 {
+
+    SDL_FreeSurface(fileSurface);
+SDL_DestroyTexture(fileTexture);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
+#if SAVE_IMAGES
+  IMG_Quit();
+#endif
   SDL_Quit();
 }
 

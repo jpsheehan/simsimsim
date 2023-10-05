@@ -13,13 +13,13 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 3
+#define SIM_INTERNAL_MAX 32
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
-#define SIM_GEN_STEPS 300
-#define SIM_NUM_GENES 8
+#define SIM_GEN_STEPS 150
+#define SIM_NUM_GENES 128
 #define SIM_POPULATION 1000
-#define SIM_MAX_GENERATIONS 1000
+#define SIM_MAX_GENERATIONS 100000
 #define SIM_MUTATION_RATE 0.01f
 #define SIM_ENERGY_TO_MOVE 0.01f
 #define SIM_ENERGY_TO_REST 0.01f
@@ -627,7 +627,7 @@ bool centerSelector(Organism *org) {
 bool circleCenterSelector(Organism* org) {
   return
     ((SIM_WIDTH / 2 - org->pos.x) * (SIM_WIDTH / 2 - org->pos.x) +
-    (SIM_HEIGHT / 2 - org->pos.y) * (SIM_HEIGHT / 2 - org->pos.y)) < (32 * 32);
+    (SIM_HEIGHT / 2 - org->pos.y) * (SIM_HEIGHT / 2 - org->pos.y)) < (16 * 16);
 }
 
 bool triangleSelector(Organism *org) { return (org->pos.x >= org->pos.y); }
@@ -711,6 +711,7 @@ int main(int argc, char *argv[]) {
 
   srand(seed);
   printf("Seed is %d\n", seed);
+  visSetSeed(seed);
 
   Organism *orgs = calloc(SIM_POPULATION, sizeof(Organism));
   Organism *nextGenOrgs = calloc(SIM_POPULATION, sizeof(Organism));

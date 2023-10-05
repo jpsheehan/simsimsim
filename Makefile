@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-g -Wall `pkg-config --cflags sdl2`
-LFLAGS=-lm `pkg-config --libs sdl2`
+CFLAGS=-g -Wall `pkg-config --cflags sdl2 SDL2_image`
+LFLAGS=-lm `pkg-config --libs sdl2 SDL2_image`
 
 life: sim.o visualiser.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
