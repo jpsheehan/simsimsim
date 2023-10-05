@@ -25,8 +25,10 @@ static bool wantsToQuit = false;
 void visDrawShell(void);
 void visSetTitle(void);
 
-void visInit(uint32_t w, uint32_t h) {
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+void visInit(uint32_t w, uint32_t h)
+{
+  if (SDL_Init(SDL_INIT_VIDEO) != 0)
+  {
     fprintf(stderr, "Could not init SDL\n");
     exit(1);
   }
@@ -34,13 +36,15 @@ void visInit(uint32_t w, uint32_t h) {
   window =
       SDL_CreateWindow("Visualiser", SDL_WINDOWPOS_UNDEFINED,
                        SDL_WINDOWPOS_UNDEFINED, WIN_W, WIN_H, SDL_WINDOW_SHOWN);
-  if (window == NULL) {
+  if (window == NULL)
+  {
     fprintf(stderr, "Could not create window\n");
     exit(1);
   }
 
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-  if (renderer == NULL) {
+  if (renderer == NULL)
+  {
     fprintf(stderr, "Could not create renderer\n");
     exit(1);
   }
@@ -54,7 +58,8 @@ void visInit(uint32_t w, uint32_t h) {
   SDL_RenderPresent(renderer);
 }
 
-void visDrawShell(void) {
+void visDrawShell(void)
+{
   SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
   SDL_RenderClear(renderer);
 
@@ -65,7 +70,8 @@ void visDrawShell(void) {
                                            .h = simH * SIM_SCALE + 2});
 
   // draw obstacles
-  for (int i = 0; i < OBSTACLE_COUNT; i++) {
+  for (int i = 0; i < OBSTACLE_COUNT; i++)
+  {
     Rect *r = &OBSTACLES[i];
     SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
     SDL_RenderFillRect(renderer,
@@ -76,29 +82,35 @@ void visDrawShell(void) {
   }
 }
 
-void visSetGeneration(int g) {
+void visSetGeneration(int g)
+{
   generation = g;
   visSetTitle();
 }
 
-void visSetStep(int s) {
+void visSetStep(int s)
+{
   step = s;
-  visSetTitle();
 }
 
-void handleEvents() {
+void handleEvents()
+{
   SDL_Event e;
-  while (SDL_PollEvent(&e)) {
-    switch (e.type) {
+  while (SDL_PollEvent(&e))
+  {
+    switch (e.type)
+    {
     case SDL_WINDOWEVENT:
-      switch (e.window.type) {
+      switch (e.window.type)
+      {
       case SDL_WINDOWEVENT_CLOSE:
         wantsToQuit = true;
         break;
       }
       break;
     case SDL_KEYDOWN:
-      switch (e.key.keysym.sym) {
+      switch (e.key.keysym.sym)
+      {
       case SDLK_ESCAPE:
         wantsToQuit = true;
         break;
@@ -116,49 +128,78 @@ void handleEvents() {
 
 bool visGetWantsToQuit(void) { return wantsToQuit; }
 
-void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw) {
+void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
+{
   handleEvents();
 
-  if (!forceDraw && !playSteps) {
+  if (!forceDraw && !playSteps)
+  {
     return;
   }
 
+  visSetTitle();
   visDrawShell();
 
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < count; i++)
+  {
     Organism *org = &orgs[i];
 
-    if (org->alive) {
+    if (org->alive)
+    {
       SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    } else {
+    }
+    else
+    {
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     }
 
-    SDL_RenderFillRect(renderer,
-                       &(SDL_Rect){.x = paddingLeft + SIM_SCALE * org->pos.x,
-                                   .y = paddingTop + SIM_SCALE * org->pos.y,
-                                   .w = SIM_SCALE,
-                                   .h = SIM_SCALE});
+    SDL_Point fullPoints[5] = {
+        (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y},
+        (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
+        (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y + 2},
+        (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
+        (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
+    };
+    SDL_RenderDrawPoints(renderer, fullPoints, 5);
+    
+    if (org->alive)
+    {
+      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 32);
+    }
+    else
+    {
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 32);
+    }
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    fullPoints[0] = (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y};
+    fullPoints[1] = (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y + 2};
+    fullPoints[2] = (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y + 2};
+    fullPoints[3] = (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y};
+    SDL_RenderDrawPoints(renderer, fullPoints, 4);
   }
 
   SDL_RenderPresent(renderer);
   SDL_Delay(1000 / FPS);
 }
 
-void visDestroy(void) {
+void visDestroy(void)
+{
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
 }
 
-void visSetTitle(void) {
+void visSetTitle(void)
+{
   char title[100];
   snprintf(title, 100, "Gen %d, Step %d", generation, step);
   SDL_SetWindowTitle(window, title);
 }
 
-void visSetObstacles(Rect *obstacles, int count) {
-  if (OBSTACLES != NULL) {
+void visSetObstacles(Rect *obstacles, int count)
+{
+  if (OBSTACLES != NULL)
+  {
     free(OBSTACLES);
     OBSTACLES = NULL;
   }

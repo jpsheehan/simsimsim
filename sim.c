@@ -13,11 +13,11 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
-#define SIM_INTERNAL_MAX 2
+#define SIM_INTERNAL_MAX 3
 #define SIM_WIDTH 128
 #define SIM_HEIGHT 128
 #define SIM_GEN_STEPS 300
-#define SIM_NUM_GENES 4
+#define SIM_NUM_GENES 8
 #define SIM_POPULATION 1000
 #define SIM_MAX_GENERATIONS 1000
 #define SIM_MUTATION_RATE 0.01f
@@ -697,10 +697,23 @@ int main(int argc, char *argv[]) {
   visInit(SIM_WIDTH, SIM_HEIGHT);
   signal(SIGINT, &signalHandler);
 
-  srand(time(NULL));
+  int seed;
 
-  Organism orgs[SIM_POPULATION] = {0};
-  Organism nextGenOrgs[SIM_POPULATION] = {0};
+  if (argc == 2) 
+  {
+    if (sscanf(argv[1], "%d", &seed) != 1) {
+      fprintf(stderr, "Could not parse seed from argument.\n");
+      seed = time(NULL);
+    }
+  } else {
+    seed = time(NULL);
+  }
+
+  srand(seed);
+  printf("Seed is %d\n", seed);
+
+  Organism *orgs = calloc(SIM_POPULATION, sizeof(Organism));
+  Organism *nextGenOrgs = calloc(SIM_POPULATION, sizeof(Organism));
 
   visSetObstacles(obstacles, obstaclesCount);
 
@@ -798,7 +811,9 @@ int main(int argc, char *argv[]) {
       destroyOrganism(&orgs[i]);
     }
 
-    memcpy(orgs, nextGenOrgs, sizeof(Organism) * SIM_POPULATION);
+    Organism* tmp = orgs;
+    orgs = nextGenOrgs;
+    nextGenOrgs = tmp;
 
     if (interrupted || survivors <= 1 || visGetWantsToQuit())
       break;
@@ -809,6 +824,9 @@ int main(int argc, char *argv[]) {
   }
 
   visDestroy();
+
+  free(orgs);
+  free(nextGenOrgs);
 
   return EXIT_SUCCESS;
 }
