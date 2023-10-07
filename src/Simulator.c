@@ -1,3 +1,4 @@
+#include <bits/time.h>
 #include <math.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -38,6 +39,12 @@ void runSimulation(Simulation *sim)
 
     float Ao10Buffer[10] = {0.0f};
     int Ao10Idx = 0;
+    uint64_t lastTimeInMicroseconds;
+
+    struct timespec ts;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    lastTimeInMicroseconds = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 
     for (int g = 0; g < sim->maxGenerations; g++) {
         visSetGeneration(g);
@@ -106,11 +113,18 @@ void runSimulation(Simulation *sim)
         }
         Ao10 /= (float)(g < 10 ? g + 1 : 10);
 
+        clock_gettime(CLOCK_REALTIME, &ts);
+        uint64_t endOfStepMicroseconds = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+        uint64_t diff = endOfStepMicroseconds - lastTimeInMicroseconds;
+        lastTimeInMicroseconds = endOfStepMicroseconds;
+
+        double generationsPerMinute = 60000000.0 / diff;
+
         printf("Gen %d survival rate is %d/%d (%03.2f%%, %03.2f%% Ao10) with %d "
                "dead before and "
-               "%d dead after selection.\n",
+               "%d dead after selection. Took %ld us. %.2f Gen/min.\n",
                g, survivors, sim->population, survivalRate, Ao10,
-               deadBeforeSelection, deadAfterSelection);
+               deadBeforeSelection, deadAfterSelection, diff, generationsPerMinute);
 
         if (survivors <= 1) {
             break;

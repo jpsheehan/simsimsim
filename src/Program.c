@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
 #include "Simulator.h"
 #include "Selectors.h"
@@ -27,7 +28,7 @@ int main(int argc, const char* argv[])
     sim.selector = &leftSelector;
     sim.mutationRate = 0.01;
     sim.obstacles = obstacles;
-    sim.obstaclesCount = 2;
+    sim.obstaclesCount = 0;
     sim.size = (Size) {
         .w = 128, .h = 128
     };
@@ -36,7 +37,7 @@ int main(int argc, const char* argv[])
     sim.maxInternalNeurons = 1;
     sim.population = 1000;
     sim.stepsPerGeneration = 150;
-    sim.numberOfGenes = 4;
+    sim.numberOfGenes = 5;
     sim.maxGenerations = 100;
 
     runSimulation(&sim);

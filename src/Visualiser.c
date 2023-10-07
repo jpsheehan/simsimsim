@@ -18,6 +18,8 @@
 #include <SDL_image.h>
 #endif
 
+#if FEATURE_VISUALISER
+
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static uint32_t generation;
@@ -277,3 +279,19 @@ void visSetObstacles(Rect *obstacles, int count)
     OBSTACLES = calloc(count, sizeof(Rect));
     memcpy(OBSTACLES, obstacles, sizeof(Rect) * count);
 }
+
+#else
+
+void visInit(uint32_t w, uint32_t h) {}
+void visDestroy(void) {}
+
+void visDrawBlank(void) {}
+
+void visSetGeneration(int _) {}
+void visSetStep(int _) {}
+void visSetSeed(int _) {}
+void visDrawStep(Organism* _, uint32_t __, bool ___) {}
+void visSetObstacles(Rect* _, int __) {}
+bool visGetWantsToQuit(void) {return false;}
+
+#endif

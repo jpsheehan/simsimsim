@@ -3,7 +3,7 @@ INC=./include
 OBJ=./obj
 CC=gcc
 CFLAGS=-g -Wall -I./$(INC)
-LFLAGS=-lm `pkg-config --libs sdl2 SDL_image`
+LFLAGS=-lm -lpthread `pkg-config --libs sdl2 SDL_image`
 
 life: $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
