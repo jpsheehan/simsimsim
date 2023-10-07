@@ -10,8 +10,7 @@ int main(int argc, const char* argv[])
 {
     Simulation sim;
 
-    if (argc == 2)
-    {
+    if (argc == 2) {
         if (sscanf(argv[1], "%d", &sim.seed) != 1) {
             fprintf(stderr, "Could not parse seed from argument.\n");
             sim.seed = time(NULL);

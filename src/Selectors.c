@@ -16,11 +16,13 @@ bool centerYSelector(Organism *org, Simulation *sim)
             (org->pos.y < (2 * sim->size.h / 3)));
 }
 
-bool collidedSelector(Organism *org, Simulation *sim) {
+bool collidedSelector(Organism *org, Simulation *sim)
+{
     return org->didCollide;
 }
 
-bool hasEnoughEnergySelector(Organism *org, Simulation *sim) {
+bool hasEnoughEnergySelector(Organism *org, Simulation *sim)
+{
     return org->energyLevel > 0.7f;
 }
 
@@ -36,17 +38,21 @@ bool circleCenterSelector(Organism* org, Simulation *sim)
          (sim->size.h / 2 - org->pos.y) * (sim->size.h / 2 - org->pos.y)) < (16 * 16);
 }
 
-bool triangleSelector(Organism *org, Simulation *sim) {
+bool triangleSelector(Organism *org, Simulation *sim)
+{
     return (org->pos.x >= org->pos.y);
 }
 
-bool leftSelector(Organism *org, Simulation *sim) {
+bool leftSelector(Organism *org, Simulation *sim)
+{
     return org->pos.x < sim->size.w * 0.2;
 }
-bool rightSelector(Organism *org, Simulation *sim) {
+bool rightSelector(Organism *org, Simulation *sim)
+{
     return org->pos.x > sim->size.w * 0.8;
 }
 
-bool leftAndRightSelector(Organism *org, Simulation *sim) {
+bool leftAndRightSelector(Organism *org, Simulation *sim)
+{
     return leftSelector(org, sim) || rightSelector(org, sim);
 }

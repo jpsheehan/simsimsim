@@ -46,8 +46,7 @@ void visSetSeed(int s)
 
 void visInit(uint32_t w, uint32_t h)
 {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-    {
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         fprintf(stderr, "Could not init SDL\n");
         exit(1);
     }
@@ -67,15 +66,13 @@ void visInit(uint32_t w, uint32_t h)
     window =
         SDL_CreateWindow("Visualiser", SDL_WINDOWPOS_UNDEFINED,
                          SDL_WINDOWPOS_UNDEFINED, WIN_W, WIN_H, SDL_WINDOW_SHOWN);
-    if (window == NULL)
-    {
+    if (window == NULL) {
         fprintf(stderr, "Could not create window\n");
         exit(1);
     }
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == NULL)
-    {
+    if (renderer == NULL) {
         fprintf(stderr, "Could not create renderer\n");
         exit(1);
     }
@@ -127,10 +124,14 @@ void visDrawShell(void)
     snprintf(buffer, 128, "Generation: %d", generation + 1);
     textSurface = TTF_RenderText_Blended(font, buffer, black);
     textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-    
-    sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
-    destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop, .w = textSurface->w, .h = textSurface->h };
-    
+
+    sourceRect = (SDL_Rect) {
+        .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
+    };
+    destRect = (SDL_Rect) {
+        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop, .w = textSurface->w, .h = textSurface->h
+    };
+
     SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
     SDL_FreeSurface(textSurface);
     SDL_DestroyTexture(textTexture);
@@ -140,9 +141,13 @@ void visDrawShell(void)
     textSurface = TTF_RenderText_Blended(font, buffer, black);
     textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
 
-    sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
-    destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20, .w = textSurface->w, .h = textSurface->h };
-    
+    sourceRect = (SDL_Rect) {
+        .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
+    };
+    destRect = (SDL_Rect) {
+        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20, .w = textSurface->w, .h = textSurface->h
+    };
+
     SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
     SDL_FreeSurface(textSurface);
     SDL_DestroyTexture(textTexture);
@@ -152,9 +157,13 @@ void visDrawShell(void)
     textSurface = TTF_RenderText_Blended(font, buffer, black);
     textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
 
-    sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
-    destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 40, .w = textSurface->w, .h = textSurface->h };
-    
+    sourceRect = (SDL_Rect) {
+        .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
+    };
+    destRect = (SDL_Rect) {
+        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 40, .w = textSurface->w, .h = textSurface->h
+    };
+
     SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
     SDL_FreeSurface(textSurface);
     SDL_DestroyTexture(textTexture);
@@ -165,17 +174,20 @@ void visDrawShell(void)
         textSurface = TTF_RenderText_Blended(font, buffer, black);
         textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
 
-        sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
-        destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 60, .w = textSurface->w, .h = textSurface->h };
-        
+        sourceRect = (SDL_Rect) {
+            .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
+        };
+        destRect = (SDL_Rect) {
+            .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 60, .w = textSurface->w, .h = textSurface->h
+        };
+
         SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
         SDL_FreeSurface(textSurface);
         SDL_DestroyTexture(textTexture);
     }
 
     // draw obstacles
-    for (int i = 0; i < OBSTACLE_COUNT; i++)
-    {
+    for (int i = 0; i < OBSTACLE_COUNT; i++) {
         Rect *r = &OBSTACLES[i];
         SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
         SDL_RenderFillRect(renderer,
@@ -204,21 +216,17 @@ void visSetStep(int s)
 void handleEvents()
 {
     SDL_Event e;
-    while (SDL_PollEvent(&e))
-    {
-        switch (e.type)
-        {
+    while (SDL_PollEvent(&e)) {
+        switch (e.type) {
         case SDL_WINDOWEVENT:
-            switch (e.window.type)
-            {
+            switch (e.window.type) {
             case SDL_WINDOWEVENT_CLOSE:
                 wantsToQuit = true;
                 break;
             }
             break;
         case SDL_KEYDOWN:
-            switch (e.key.keysym.sym)
-            {
+            switch (e.key.keysym.sym) {
             case SDLK_ESCAPE:
                 wantsToQuit = true;
                 break;
@@ -234,7 +242,8 @@ void handleEvents()
     }
 }
 
-bool visGetWantsToQuit(void) {
+bool visGetWantsToQuit(void)
+{
     return wantsToQuit;
 }
 
@@ -252,23 +261,18 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
 
     SDL_SetRenderTarget(renderer, fileTexture);
 
-    if (!forceDraw && !playSteps)
-    {
+    if (!forceDraw && !playSteps) {
         return;
     }
 
     visDrawShell();
 
-    for (int i = 0; i < count; i++)
-    {
+    for (int i = 0; i < count; i++) {
         Organism *org = &orgs[i];
 
-        if (org->alive)
-        {
+        if (org->alive) {
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        }
-        else
-        {
+        } else {
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         }
 
@@ -281,12 +285,9 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
         };
         SDL_RenderDrawPoints(renderer, fullPoints, 5);
 
-        if (org->alive)
-        {
+        if (org->alive) {
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 32);
-        }
-        else
-        {
+        } else {
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 32);
         }
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -345,8 +346,7 @@ void visDestroy(void)
 
 void visSetObstacles(Rect *obstacles, int count)
 {
-    if (OBSTACLES != NULL)
-    {
+    if (OBSTACLES != NULL) {
         free(OBSTACLES);
         OBSTACLES = NULL;
     }
@@ -369,7 +369,8 @@ void visSetStep(int _) {}
 void visSetSeed(int _) {}
 void visDrawStep(Organism* _, uint32_t __, bool ___) {}
 void visSetObstacles(Rect* _, int __) {}
-bool visGetWantsToQuit(void) {
+bool visGetWantsToQuit(void)
+{
     return false;
 }
 

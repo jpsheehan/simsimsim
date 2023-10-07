@@ -16,7 +16,8 @@
 
 static volatile bool interrupted = false;
 
-void signalHandler(int sig) {
+void signalHandler(int sig)
+{
     interrupted = true;
 }
 

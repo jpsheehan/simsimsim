@@ -26,7 +26,8 @@ static char *OutputTypeStrings[OUT_MAX] = {
 
 void organismDestroyNeuralNet(Organism *org);
 
-Gene intToGene(uint32_t n) {
+Gene intToGene(uint32_t n)
+{
     return (Gene) {
         .sourceIsInput = (bool)((n >> 31) & 0x01),
         .sourceId = (uint8_t)((n >> 24) & 0x7f),
@@ -36,13 +37,15 @@ Gene intToGene(uint32_t n) {
     };
 }
 
-uint32_t geneToInt(Gene *gene) {
+uint32_t geneToInt(Gene *gene)
+{
     return (uint32_t)(((gene->sourceIsInput << 7) | gene->sourceId) << 24) |
            (uint32_t)(((gene->sinkIsOutput << 7) | gene->sinkId) << 16) |
            (uint32_t)gene->weight;
 }
 
-void testGeneCreation() {
+void testGeneCreation()
+{
     uint32_t geneInt = rand() % UINT32_MAX;
 
     Gene gene = intToGene(geneInt);
@@ -55,13 +58,15 @@ void testGeneCreation() {
     }
 }
 
-char *geneToString(Gene *gene) {
+char *geneToString(Gene *gene)
+{
     char *buffer = calloc(9, sizeof(char));
     snprintf(buffer, 9, "%08X", geneToInt(gene));
     return buffer;
 }
 
-char *genomeToString(Genome *genome) {
+char *genomeToString(Genome *genome)
+{
     size_t size = 9 * genome->count + 1;
     char *buffer = calloc(size, sizeof(char));
     for (int i = 0; i < genome->count; i++) {
@@ -78,7 +83,8 @@ char *genomeToString(Genome *genome) {
 Genome reproduce(Genome *a, Genome *b);
 void organismBuildNeuralNet(Organism *org, Simulation *sim);
 
-Genome mutate(Genome genome, float mutationRate) {
+Genome mutate(Genome genome, float mutationRate)
+{
     if ((float)rand() / (float)RAND_MAX >= mutationRate) {
         return genome;
     }
@@ -91,10 +97,12 @@ Genome mutate(Genome genome, float mutationRate) {
     return genome;
 }
 
-Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition) {
+Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition)
+{
     Organism org = {
         .pos =
-        (Pos) {
+        (Pos)
+        {
             .x = rand() % sim->size.w,
             .y = rand() % sim->size.h,
         },
@@ -116,14 +124,16 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
     return org;
 }
 
-void destroyOrganism(Organism *org) {
+void destroyOrganism(Organism *org)
+{
     organismDestroyNeuralNet(org);
     free(org->genome.genes);
     org->genome.genes = NULL;
     org->genome.count = 0;
 }
 
-void dumpOrganismNet(Organism *org) {
+void dumpOrganismNet(Organism *org)
+{
     printf("BREAKDOWN OF NET:\n");
     for (int i = 0; i < org->net.connectionCount; i++) {
         NeuralConnection *connection = &org->net.connections[i];
@@ -156,7 +166,8 @@ void dumpOrganismNet(Organism *org) {
 }
 
 void findMates(Organism orgs[], int population, Organism **outA,
-               Organism **outB) {
+               Organism **outB)
+{
     // finds two distinct organisms that are alive
     *outA = NULL;
     *outB = NULL;
@@ -182,7 +193,8 @@ void findMates(Organism orgs[], int population, Organism **outA,
     }
 }
 
-Genome reproduce(Genome *a, Genome *b) {
+Genome reproduce(Genome *a, Genome *b)
+{
     int largerCount = a->count > b->count ? a->count : b->count;
 
     Genome genome = {.count = largerCount,
@@ -206,7 +218,8 @@ Genome reproduce(Genome *a, Genome *b) {
     return genome;
 }
 
-Neuron *findNeuronById(Neuron *neurons, size_t n, uint16_t id) {
+Neuron *findNeuronById(Neuron *neurons, size_t n, uint16_t id)
+{
     for (int i = 0; i < n; i++) {
         if (neurons[i].id == id) {
             return &neurons[i];
@@ -215,7 +228,8 @@ Neuron *findNeuronById(Neuron *neurons, size_t n, uint16_t id) {
     return NULL;
 }
 
-void organismBuildNeuralNet(Organism *org, Simulation* sim) {
+void organismBuildNeuralNet(Organism *org, Simulation* sim)
+{
     Neuron neurons[128] = {0};
     uint8_t usedNeurons = 0;
 
@@ -300,7 +314,8 @@ void organismBuildNeuralNet(Organism *org, Simulation* sim) {
     // 16384); printf("Net sink is %p, source is %p\n", sink, source);
 }
 
-void organismDestroyNeuralNet(Organism *org) {
+void organismDestroyNeuralNet(Organism *org)
+{
     free(org->net.connections);
     free(org->net.neurons);
     org->net.connections = NULL;
@@ -315,7 +330,8 @@ bool inRange(int minInclusive, int x, int maxExclusive)
 }
 
 Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
-                           bool aliveOnly) {
+                           bool aliveOnly)
+{
     if (!inRange(0, pos.x, sim->size.w) ||
             !inRange(0, pos.y, sim->size.h)) {
         return NULL;
@@ -342,7 +358,8 @@ void setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism*
     orgsByPosition[sim->size.w * org->pos.y + org->pos.x] = org;
 }
 
-void organismMoveBackIntoZone(Organism *org, Simulation* sim) {
+void organismMoveBackIntoZone(Organism *org, Simulation* sim)
+{
     // Pos original = org->pos;
     if (org->pos.x >= sim->size.w) {
         org->pos.x = sim->size.w - 1;
@@ -445,7 +462,7 @@ void computeNeuronStates(Organism* org)
             if (source->inputs && (source->inputsVisited < source->inputs)) {
                 continue;
             }
-            
+
             Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount,
                                           connection->sinkId);
 
@@ -544,7 +561,7 @@ void performNeuronOutputs(Organism* org, Pos originalPosition, Organism** orgsBy
     } else {
         org->energyLevel += sim->energyToRest;
     }
-    
+
     if (org->energyLevel <= 0.0f) {
         org->alive = false;
         org->energyLevel = 0.0f;
@@ -585,19 +602,20 @@ void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition)
 #endif
 }
 
-void organismRunStep(Organism *org, Organism **orgsByPosition, Simulation* sim, int currentStep) {
+void organismRunStep(Organism *org, Organism **orgsByPosition, Simulation* sim, int currentStep)
+{
 
     if (!org->alive)
         return;
 
     Pos originalPosition = org->pos;
-    
+
     resetNeuronState(org);
 
     exciteInputNeurons(sim, orgsByPosition, org, currentStep);
 
     computeNeuronStates(org);
-    
+
     performNeuronOutputs(org, originalPosition, orgsByPosition, sim);
 
     if (!org->alive)
@@ -606,11 +624,13 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Simulation* sim, 
     handleCollisions(org, sim, orgsByPosition);
 }
 
-uint32_t rand_uint32(void) {
+uint32_t rand_uint32(void)
+{
     return (uint32_t)((uint16_t)(rand()) << 16) | (uint16_t)rand();
 }
 
-Genome makeRandomGenome(uint8_t numGenes) {
+Genome makeRandomGenome(uint8_t numGenes)
+{
     Genome genome = {.count = numGenes, .genes = calloc(numGenes, sizeof(Gene))};
 
     for (int i = 0; i < numGenes; i++) {
@@ -620,7 +640,8 @@ Genome makeRandomGenome(uint8_t numGenes) {
     return genome;
 }
 
-Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition) {
+Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
+{
     Organism org = {
         .pos = (Pos){.x = rand() % sim->size.w, .y = rand() % sim->size.h},
         .genome = makeRandomGenome(sim->numberOfGenes),
