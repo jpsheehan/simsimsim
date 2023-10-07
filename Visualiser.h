@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <SDL2/SDL.h>
-#include "Simulator.h"
+#include "Common.h"
 
 void visInit(uint32_t w, uint32_t h);
 void visDestroy(void);

@@ -1,5 +1,4 @@
 #include "Geometry.h"
-#include "Direction.h"
 
 Pos addPos(Pos a, Pos b) { return (Pos){.x = a.x + b.x, .y = a.y + b.y}; }
 

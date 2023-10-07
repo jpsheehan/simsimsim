@@ -1,23 +1,29 @@
 CC=gcc
-CFLAGS=-g -Wall `pkg-config --cflags sdl2 SDL2_image`
+CFLAGS=-g -Wall
 LFLAGS=-lm `pkg-config --libs sdl2 SDL2_image`
 
-life: main.c Direction.o Geometry.o Organism.o Simulator.o Visualiser.o 
+life: Program.o Direction.o Geometry.o Organism.o Simulator.o Visualiser.o Selectors.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
 
-Visualiser.o: Visualiser.c *.h
+Direction.o: Direction.c Direction.h Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-Simulator.o: Simulator.c *.h
+Geometry.o: Geometry.c Geometry.h Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-Geometry.o: Geometry.c Geometry.h Direction.h
+Program.o: Program.c Simulator.h Selectors.h Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-Direction.o: Direction.c Direction.h
+Visualiser.o: Visualiser.c Simulator.h Common.h
+	$(CC) $< $(CFLAGS) -c -o $@ `pkg-config --cflags sdl2 SDL2_image`
+
+Simulator.o: Simulator.c Simulator.h Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-Organism.o: Organism.c Organism.h
+Organism.o: Organism.c Organism.h Common.h Direction.h
+	$(CC) $< $(CFLAGS) -c -o $@
+
+Selectors.o: Selectors.c Selectors.h Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:
