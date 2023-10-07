@@ -57,7 +57,7 @@ void runSimulation(Simulation *sim)
             visDrawStep(orgs, sim->population, false);
 
             for (int i = 0; i < sim->population; i++) {
-                organismRunStep(&orgs[i], orgsByPosition, sim, step, sim->stepsPerGeneration);
+                organismRunStep(&orgs[i], orgsByPosition, sim, step);
             }
 
             if (interrupted || visGetWantsToQuit())

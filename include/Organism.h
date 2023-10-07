@@ -11,5 +11,5 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
 void findMates(Organism orgs[], int population, Organism **outA,
                Organism **outB);
 void organismRunStep(Organism *org, Organism **organismsByPosition, Simulation* sim,
-                     int currentStep, int maxStep);
+                     int currentStep);
 #endif
