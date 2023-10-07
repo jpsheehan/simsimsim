@@ -2,13 +2,14 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_video.h>
+#include <SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "Simulator.h"
 #include "Visualiser.h"
 
-#define WIN_W 480
+#define WIN_W 640
 #define WIN_H 480
 #define SIM_SCALE 3
 #define FPS 60
@@ -22,6 +23,7 @@
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
+static TTF_Font* font;
 static uint32_t generation;
 static uint32_t step;
 static int seed;
@@ -32,10 +34,10 @@ static bool playSteps = true;
 static bool wantsToQuit = false;
 static SDL_Texture* fileTexture = NULL;
 static SDL_Surface* fileSurface = NULL;
-
+static float survivalRate;
+static float previousSurvivalRate = -1.0f;
 
 void visDrawShell(void);
-void visSetTitle(void);
 
 void visSetSeed(int s)
 {
@@ -52,10 +54,15 @@ void visInit(uint32_t w, uint32_t h)
 
 #if SAVE_IMAGES
     if (!IMG_Init(IMG_INIT_JPG)) {
-        fprintf(stderr, "Coult not init img\n");
+        fprintf(stderr, "Could not init img\n");
         exit(1);
     }
 #endif
+
+    if (TTF_Init() == -1) {
+        fprintf(stderr, "Could not ini ttf\n");
+        exit(1);
+    }
 
     window =
         SDL_CreateWindow("Visualiser", SDL_WINDOWPOS_UNDEFINED,
@@ -73,10 +80,17 @@ void visInit(uint32_t w, uint32_t h)
         exit(1);
     }
 
+    font = TTF_OpenFont("resources/SourceSansPro-Regular.ttf", 16);
+    if (font == NULL) {
+        fprintf(stderr, "Could not open font\n");
+        exit(1);
+    }
+
     simW = w;
     simH = h;
-    paddingLeft = (WIN_W - (SIM_SCALE * w)) / 2;
     paddingTop = (WIN_H - (SIM_SCALE * h)) / 2;
+    paddingLeft = paddingTop;// (WIN_W - (SIM_SCALE * w)) / 2;
+    survivalRate = 100.0f;
 
     visDrawShell();
     SDL_RenderPresent(renderer);
@@ -89,9 +103,11 @@ void visInit(uint32_t w, uint32_t h)
 
 void visDrawShell(void)
 {
+    // clear the window
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
+    // draw outline for the play field
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderDrawRect(renderer, &(SDL_Rect) {
         .x = paddingLeft - 1,
@@ -99,6 +115,63 @@ void visDrawShell(void)
         .w = simW * SIM_SCALE + 2,
         .h = simH * SIM_SCALE + 2
     });
+
+    // draw the text
+    char buffer[128] = { 0 };
+    SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
+    SDL_Rect sourceRect, destRect;
+    SDL_Surface* textSurface;
+    SDL_Texture* textTexture;
+
+    // Generation
+    snprintf(buffer, 128, "Generation: %d", generation + 1);
+    textSurface = TTF_RenderText_Blended(font, buffer, black);
+    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    
+    sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
+    destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop, .w = textSurface->w, .h = textSurface->h };
+    
+    SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+
+    // Step
+    snprintf(buffer, 128, "Step: %03d", step + 1);
+    textSurface = TTF_RenderText_Blended(font, buffer, black);
+    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+    sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
+    destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20, .w = textSurface->w, .h = textSurface->h };
+    
+    SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+
+    // Survival Rate
+    snprintf(buffer, 128, "Survival Rate: %.2f%%", survivalRate);
+    textSurface = TTF_RenderText_Blended(font, buffer, black);
+    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+    sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
+    destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 40, .w = textSurface->w, .h = textSurface->h };
+    
+    SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+
+    // Previous Gen. Survival Rate
+    if (previousSurvivalRate >= 0.0f) {
+        snprintf(buffer, 128, "Prev. Rate: %.2f%%", previousSurvivalRate);
+        textSurface = TTF_RenderText_Blended(font, buffer, black);
+        textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+        sourceRect = (SDL_Rect){ .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h };
+        destRect = (SDL_Rect){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 60, .w = textSurface->w, .h = textSurface->h };
+        
+        SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
+        SDL_FreeSurface(textSurface);
+        SDL_DestroyTexture(textTexture);
+    }
 
     // draw obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++)
@@ -118,7 +191,9 @@ void visDrawShell(void)
 void visSetGeneration(int g)
 {
     generation = g;
-    visSetTitle();
+    if (generation > 0) {
+        previousSurvivalRate = survivalRate;
+    }
 }
 
 void visSetStep(int s)
@@ -167,6 +242,14 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
 {
     handleEvents();
 
+    int survivors = 0;
+    for (int i = 0; i < count; i++) {
+        if (orgs[i].alive) {
+            survivors++;
+        }
+    }
+    survivalRate = 100.0f * (float)survivors / (float)count;
+
     SDL_SetRenderTarget(renderer, fileTexture);
 
     if (!forceDraw && !playSteps)
@@ -174,7 +257,6 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
         return;
     }
 
-    visSetTitle();
     visDrawShell();
 
     for (int i = 0; i < count; i++)
@@ -248,22 +330,16 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
 
 void visDestroy(void)
 {
-
     SDL_FreeSurface(fileSurface);
     SDL_DestroyTexture(fileTexture);
+    TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    TTF_Quit();
 #if SAVE_IMAGES
     IMG_Quit();
 #endif
     SDL_Quit();
-}
-
-void visSetTitle(void)
-{
-    char title[100];
-    snprintf(title, 100, "Gen %d, Step %d", generation, step);
-    SDL_SetWindowTitle(window, title);
 }
 
 void visSetObstacles(Rect *obstacles, int count)

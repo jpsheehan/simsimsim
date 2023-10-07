@@ -25,7 +25,7 @@ int main(int argc, const char* argv[])
         (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
     };
 
-    sim.selector = &leftSelector;
+    sim.selector = &centerSelector;
     sim.mutationRate = 0.01;
     sim.obstacles = obstacles;
     sim.obstaclesCount = 0;
@@ -36,9 +36,9 @@ int main(int argc, const char* argv[])
     sim.energyToRest = 0.01;
     sim.maxInternalNeurons = 1;
     sim.population = 1000;
-    sim.stepsPerGeneration = 300;
-    sim.numberOfGenes = 5;
-    sim.maxGenerations = 10;
+    sim.stepsPerGeneration = 150;
+    sim.numberOfGenes = 2;
+    sim.maxGenerations = 10000;
 
     runSimulation(&sim);
 
