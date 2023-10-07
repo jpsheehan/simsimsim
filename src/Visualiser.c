@@ -292,6 +292,8 @@ void visSetStep(int _) {}
 void visSetSeed(int _) {}
 void visDrawStep(Organism* _, uint32_t __, bool ___) {}
 void visSetObstacles(Rect* _, int __) {}
-bool visGetWantsToQuit(void) {return false;}
+bool visGetWantsToQuit(void) {
+    return false;
+}
 
 #endif

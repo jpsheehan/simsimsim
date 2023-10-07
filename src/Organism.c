@@ -317,7 +317,7 @@ bool inRange(int minInclusive, int x, int maxExclusive)
 Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
                            bool aliveOnly) {
     if (!inRange(0, pos.x, sim->size.w) ||
-        !inRange(0, pos.y, sim->size.h)) {
+            !inRange(0, pos.y, sim->size.h)) {
         return NULL;
     }
 
@@ -330,7 +330,7 @@ Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
     if ((aliveOnly && org->alive) || !aliveOnly) {
         return org;
     }
-    
+
     return NULL;
 }
 
