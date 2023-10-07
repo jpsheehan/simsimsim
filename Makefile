@@ -41,6 +41,6 @@ callgrind: $(EXE)
 	valgrind --tool=callgrind $(EXE) $(SEED)
 
 format:
-	astyle --recursive ./*.c,*.h
+	astyle --style-kr --recursive ./*.c,*.h
 
 .PHONY: clean cachegrind callgrind format

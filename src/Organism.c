@@ -309,7 +309,7 @@ void organismDestroyNeuralNet(Organism *org) {
     org->net.neuronCount = 0;
 }
 
-bool inline inRange(int minInclusive, int x, int maxExclusive)
+bool inRange(int minInclusive, int x, int maxExclusive)
 {
     return x >= minInclusive && x < maxExclusive;
 }
@@ -335,7 +335,7 @@ Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
 }
 
 // Sets the organism's position in the LUT if it is alive.
-void inline setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism* org)
+void setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism* org)
 {
     if (!org->alive) return;
 
@@ -606,7 +606,7 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Simulation* sim, 
     handleCollisions(org, sim, orgsByPosition);
 }
 
-uint32_t inline rand_uint32(void) {
+uint32_t rand_uint32(void) {
     return (uint32_t)((uint16_t)(rand()) << 16) | (uint16_t)rand();
 }
 
