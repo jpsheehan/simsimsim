@@ -12,14 +12,6 @@
 #include "Geometry.h"
 #include "Organism.h"
 
-#define SIM_COLLISION_DEATHS false
-
-// static Rect obstacles[2] = {
-//     (Rect){.x = 32, .y = 48, .w = 2, .h = 32},
-//     (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
-// };
-// static int obstaclesCount = 0;
-
 static volatile bool interrupted = false;
 
 void signalHandler(int sig) {

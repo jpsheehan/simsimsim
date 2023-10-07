@@ -8,6 +8,8 @@
 #include "Common.h"
 #include "Geometry.h"
 
+#define SIM_COLLISION_DEATHS true
+
 static char *InputTypeStrings[IN_MAX] = {"WORLD_X",
                                          "WORLD_Y",
                                          "IN_AGE",

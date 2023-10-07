@@ -241,7 +241,7 @@ void visDrawStep(Organism *orgs, uint32_t count, bool forceDraw)
     SDL_RenderCopy(renderer, fileTexture, &rect, &rect);
     SDL_RenderPresent(renderer);
 
-    // SDL_Delay(1000 / FPS);
+    SDL_Delay(1000 / FPS);
 }
 
 void visDestroy(void)

@@ -19,10 +19,15 @@ int main(int argc, const char* argv[])
         sim.seed = time(NULL);
     }
 
+    Rect obstacles[2] = {
+        (Rect){.x = 32, .y = 48, .w = 2, .h = 32},
+        (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
+    };
+
     sim.selector = &leftSelector;
     sim.mutationRate = 0.01;
-    sim.obstacles = NULL;
-    sim.obstaclesCount = 0;
+    sim.obstacles = obstacles;
+    sim.obstaclesCount = 2;
     sim.size = (Size) {
         .w = 128, .h = 128
     };
