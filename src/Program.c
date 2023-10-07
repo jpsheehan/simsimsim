@@ -36,9 +36,9 @@ int main(int argc, const char* argv[])
     sim.energyToRest = 0.01;
     sim.maxInternalNeurons = 1;
     sim.population = 1000;
-    sim.stepsPerGeneration = 150;
+    sim.stepsPerGeneration = 300;
     sim.numberOfGenes = 5;
-    sim.maxGenerations = 100;
+    sim.maxGenerations = 10;
 
     runSimulation(&sim);
 

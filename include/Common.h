@@ -8,7 +8,7 @@
 #define IN_BASE 0x8000
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
-#define FEATURE_VISUALISER true
+#define FEATURE_VISUALISER false
 
 typedef enum
 {
@@ -134,6 +134,7 @@ typedef struct
 {
     uint16_t step;
     Organism *organisms;
+    Organism **organismsByPosition;
 } Generation;
 
 typedef struct __simulation_t

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "Common.h"
 #include "Simulator.h"
 #include "Visualiser.h"
 #include "Geometry.h"
@@ -30,11 +31,18 @@ void runSimulation(Simulation *sim)
 
     Organism *orgs = calloc(sim->population, sizeof(Organism));
     Organism *nextGenOrgs = calloc(sim->population, sizeof(Organism));
+    Organism **orgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
 
     visSetObstacles(sim->obstacles, sim->obstaclesCount);
 
+    // Generation gen = {
+    //   .organisms = orgs,
+    //   .step = 0,
+    //   .organismsByPosition = orgsByPosition
+    // };
+
     for (int i = 0; i < sim->population; i++) {
-        orgs[i] = makeRandomOrganism(sim->numberOfGenes, sim, orgs, i);
+        orgs[i] = makeRandomOrganism(sim, orgsByPosition);
     }
 
     float Ao10Buffer[10] = {0.0f};
@@ -50,12 +58,12 @@ void runSimulation(Simulation *sim)
         visSetGeneration(g);
 
         for (int step = 0; step < sim->stepsPerGeneration; step++) {
-
+            memset(orgsByPosition, 0, sim->size.h * sim->size.w * sizeof(Organism*));
             visSetStep(step);
             visDrawStep(orgs, sim->population, false);
 
             for (int i = 0; i < sim->population; i++) {
-                organismRunStep(&orgs[i], orgs, sim, i, step, sim->stepsPerGeneration);
+                organismRunStep(&orgs[i], orgsByPosition, sim, step, sim->stepsPerGeneration);
             }
 
             if (interrupted || visGetWantsToQuit())
@@ -73,7 +81,7 @@ void runSimulation(Simulation *sim)
                 continue;
             // printf("Org #%d has pos (%d, %d) at end of gen %d\n", i, orgs[i].pos.x,
             //        orgs[i].pos.y, g);
-            if (getOrganismByPos(orgs[i].pos, orgs, i, true)) {
+            if (getOrganismByPos(orgs[i].pos, sim, orgsByPosition, true)) {
                 occupiedCells++;
             }
         }
@@ -133,7 +141,7 @@ void runSimulation(Simulation *sim)
         for (int i = 0; i < sim->population; i++) {
             Organism *a, *b;
             findMates(orgs, sim->population, &a, &b);
-            nextGenOrgs[i] = makeOffspring(a, b, sim, orgs, i);
+            nextGenOrgs[i] = makeOffspring(a, b, sim, orgsByPosition);
         }
 
         for (int i = 0; i < sim->population; i++) {
@@ -156,4 +164,5 @@ void runSimulation(Simulation *sim)
 
     free(orgs);
     free(nextGenOrgs);
+    free(orgsByPosition);
 }

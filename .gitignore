@@ -7,3 +7,4 @@
 /*.mp4
 /obj
 **/cachegrind.out.*
+**/callgrind.out.*

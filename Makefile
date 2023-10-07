@@ -4,8 +4,10 @@ OBJ=./obj
 CC=gcc
 CFLAGS=-g -Wall -I./$(INC)
 LFLAGS=-lm -lpthread `pkg-config --libs sdl2 SDL_image`
+SEED=123123
+EXE=./life
 
-life: $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o
+$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
 
 $(OBJ)/Direction.o: $(SRC)/Direction.c $(INC)/Direction.h $(INC)/Common.h
@@ -30,6 +32,12 @@ $(OBJ)/Selectors.o: $(SRC)/Selectors.c $(INC)/Selectors.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:
-	rm -f $(OBJ)/*.o life
+	rm -f $(OBJ)/*.o $(EXE)
 
-.PHONY: clean
+cachegrind: $(EXE)
+	valgrind --tool=cachegrind $(EXE) $(SEED)
+
+callgrind: $(EXE)
+	valgrind --tool=callgrind $(EXE) $(SEED)
+
+.PHONY: clean cachegrind

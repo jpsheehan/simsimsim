@@ -91,8 +91,7 @@ Genome mutate(Genome genome, float mutationRate) {
     return genome;
 }
 
-Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism *otherOrgs,
-                       int otherOrgsCount) {
+Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition) {
     Organism org = {
         .pos =
         (Pos) {
@@ -106,7 +105,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism *othe
         .direction = getRandomDirection()
     };
 
-    while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) != NULL ||
+    while (getOrganismByPos(org.pos, sim, orgsByPosition, false) != NULL ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
         org.pos.x = rand() % sim->size.w;
         org.pos.y = rand() % sim->size.h;
@@ -310,17 +309,37 @@ void organismDestroyNeuralNet(Organism *org) {
     org->net.neuronCount = 0;
 }
 
-Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount,
-                           bool aliveOnly) {
-    for (int i = 0; i < orgsCount; i++) {
-        Organism *org = &orgs[i];
+bool inRange(int minInclusive, int x, int maxExclusive)
+{
+    return (x >= minInclusive && x < maxExclusive);
+}
 
-        if (pos.x == org->pos.x && pos.y == org->pos.y) {
-            if ((aliveOnly && org->alive) || !aliveOnly)
-                return org;
-        }
+Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
+                           bool aliveOnly) {
+    if (!inRange(0, pos.x, sim->size.w) ||
+        !inRange(0, pos.y, sim->size.h)) {
+        return NULL;
     }
+
+    Organism* org = orgsByPosition[pos.y * sim->size.w + pos.x];
+
+    if (org == NULL) {
+        return NULL;
+    }
+
+    if ((aliveOnly && org->alive) || !aliveOnly) {
+        return org;
+    }
+    
     return NULL;
+}
+
+// Sets the organism's position in the LUT if it is alive.
+void setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism* org)
+{
+    if (!org->alive) return;
+
+    orgsByPosition[sim->size.w * org->pos.y + org->pos.x] = org;
 }
 
 void organismMoveBackIntoZone(Organism *org, Simulation* sim) {
@@ -340,8 +359,7 @@ void organismMoveBackIntoZone(Organism *org, Simulation* sim) {
     // }
 }
 
-void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int otherOrgsCount,
-                     int currentStep, int maxStep) {
+void organismRunStep(Organism *org, Organism **orgsByPosition, Simulation* sim, int currentStep, int maxStep) {
 
     if (!org->alive)
         return;
@@ -389,7 +407,7 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
             // outputs should operate on the new state
             if (getOrganismByPos(
                         addPos(org->pos, moveInDirection(org->pos, org->direction)),
-                        otherOrgs, otherOrgsCount, true)) {
+                        sim, orgsByPosition, true)) {
                 input->state = 1.0f;
             } else {
                 input->state = 0.0f;
@@ -550,13 +568,15 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
         }
     }
 #else
-    while (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
+    while (getOrganismByPos(org->pos, sim, orgsByPosition, true) ||
             isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
         org->didCollide = true;
         org->pos.x += rand() % 3 - 1;
         org->pos.y += rand() % 3 - 1;
         organismMoveBackIntoZone(org, sim);
     }
+
+    setOrganismByPosition(sim, orgsByPosition, org);
 #endif
 }
 
@@ -574,18 +594,17 @@ Genome makeRandomGenome(uint8_t numGenes) {
     return genome;
 }
 
-Organism makeRandomOrganism(uint8_t numGenes, Simulation* sim,
-                            Organism *otherOrgs, int otherOrgsCount) {
+Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition) {
     Organism org = {
         .pos = (Pos){.x = rand() % sim->size.w, .y = rand() % sim->size.h},
-        .genome = makeRandomGenome(numGenes),
+        .genome = makeRandomGenome(sim->numberOfGenes),
         .alive = true,
         .didCollide = false,
         .energyLevel = 1.0,
         .direction = getRandomDirection()
     };
 
-    while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
+    while (getOrganismByPos(org.pos, sim, orgsByPosition, false) ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
         org.pos.x = rand() % sim->size.w;
         org.pos.y = rand() % sim->size.h;
