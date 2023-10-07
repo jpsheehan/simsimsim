@@ -35,12 +35,6 @@ void runSimulation(Simulation *sim)
 
     visSetObstacles(sim->obstacles, sim->obstaclesCount);
 
-    // Generation gen = {
-    //   .organisms = orgs,
-    //   .step = 0,
-    //   .organismsByPosition = orgsByPosition
-    // };
-
     for (int i = 0; i < sim->population; i++) {
         orgs[i] = makeRandomOrganism(sim, orgsByPosition);
     }
@@ -72,21 +66,6 @@ void runSimulation(Simulation *sim)
 
         if (interrupted || visGetWantsToQuit()) {
             break;
-        }
-
-        // assert that we don't have two organisms occupying the same cell
-        int occupiedCells = 0;
-        for (int i = 0; i < sim->population; i++) {
-            if (!orgs[i].alive)
-                continue;
-            // printf("Org #%d has pos (%d, %d) at end of gen %d\n", i, orgs[i].pos.x,
-            //        orgs[i].pos.y, g);
-            if (getOrganismByPos(orgs[i].pos, sim, orgsByPosition, true)) {
-                occupiedCells++;
-            }
-        }
-        if (occupiedCells) {
-            printf("Found %d occupied cells\n", occupiedCells);
         }
 
         int survivors = 0;
