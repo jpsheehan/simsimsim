@@ -107,6 +107,7 @@ typedef struct {
 } Rect;
 
 typedef struct {
+    uint16_t id;
     Pos pos;
     Genome genome;
     NeuralNet net;

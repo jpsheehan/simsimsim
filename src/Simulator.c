@@ -33,11 +33,13 @@ void runSimulation(Simulation *sim)
     Organism *orgs = calloc(sim->population, sizeof(Organism));
     Organism *nextGenOrgs = calloc(sim->population, sizeof(Organism));
     Organism **orgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
+    Organism **prevOrgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
 
     visSetObstacles(sim->obstacles, sim->obstaclesCount);
 
     for (int i = 0; i < sim->population; i++) {
         orgs[i] = makeRandomOrganism(sim, orgsByPosition);
+        orgs[i].id = i;
     }
 
     float Ao10Buffer[10] = {0.0f};
@@ -53,12 +55,14 @@ void runSimulation(Simulation *sim)
         visSetGeneration(g);
 
         for (int step = 0; step < sim->stepsPerGeneration; step++) {
+            memcpy(prevOrgsByPosition, orgsByPosition, sim->size.h * sim->size.w * sizeof(Organism*));
             memset(orgsByPosition, 0, sim->size.h * sim->size.w * sizeof(Organism*));
+
             visSetStep(step);
             visDrawStep(orgs, sim->population, false);
 
             for (int i = 0; i < sim->population; i++) {
-                organismRunStep(&orgs[i], orgsByPosition, sim, step);
+                organismRunStep(&orgs[i], orgsByPosition, prevOrgsByPosition, sim, step);
             }
 
             if (interrupted || visGetWantsToQuit())
@@ -107,12 +111,13 @@ void runSimulation(Simulation *sim)
         lastTimeInMicroseconds = endOfStepMicroseconds;
 
         double generationsPerMinute = 60000000.0 / diff;
+        double kiloStepsPerMinute = sim->stepsPerGeneration * 60000.0 / diff;
 
         printf("Gen %d survival rate is %d/%d (%03.2f%%, %03.2f%% Ao10) with %d "
                "dead before and "
-               "%d dead after selection. Took %ld us. %.2f Gen/min.\n",
+               "%d dead after selection. %.2f kSteps/min. %.2f Gen/min.\n",
                g, survivors, sim->population, survivalRate, Ao10,
-               deadBeforeSelection, deadAfterSelection, diff, generationsPerMinute);
+               deadBeforeSelection, deadAfterSelection, kiloStepsPerMinute, generationsPerMinute);
 
         if (survivors <= 1) {
             break;
@@ -122,6 +127,7 @@ void runSimulation(Simulation *sim)
             Organism *a, *b;
             findMates(orgs, sim->population, &a, &b);
             nextGenOrgs[i] = makeOffspring(a, b, sim, orgsByPosition);
+            nextGenOrgs[i].id = i;
         }
 
         for (int i = 0; i < sim->population; i++) {
@@ -145,4 +151,5 @@ void runSimulation(Simulation *sim)
     free(orgs);
     free(nextGenOrgs);
     free(orgsByPosition);
+    free(prevOrgsByPosition);
 }

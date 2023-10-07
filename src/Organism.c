@@ -390,7 +390,7 @@ void resetNeuronState(Organism* org)
     }
 }
 
-void exciteInputNeurons(Simulation* sim, Organism** orgsByPosition, Organism* org, int currentStep)
+void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism* org, int currentStep)
 {
     for (int i = 0; i < org->net.neuronCount; i++) {
         Neuron *input = &org->net.neurons[i];
@@ -420,7 +420,7 @@ void exciteInputNeurons(Simulation* sim, Organism** orgsByPosition, Organism* or
             // outputs should operate on the new state
             if (getOrganismByPos(
                         addPos(org->pos, moveInDirection(org->pos, org->direction)),
-                        sim, orgsByPosition, true)) {
+                        sim, prevOrgsByPosition, true)) {
                 input->state = 1.0f;
             } else {
                 input->state = 0.0f;
@@ -572,7 +572,7 @@ void performNeuronOutputs(Organism* org, Pos originalPosition, Organism** orgsBy
     }
 }
 
-void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition)
+void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition, Organism** prevOrgsByPosition)
 {
     // collisions
     organismMoveBackIntoZone(org, sim);
@@ -590,8 +590,10 @@ void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition)
         }
     }
 #else
-    while (getOrganismByPos(org->pos, sim, orgsByPosition, true) ||
+    Organism* collidedOrg;
+    while ((collidedOrg = getOrganismByPos(org->pos, sim, prevOrgsByPosition, true)) ||
             isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
+        if (collidedOrg == org) break;
         org->didCollide = true;
         org->pos.x += rand() % 3 - 1;
         org->pos.y += rand() % 3 - 1;
@@ -602,7 +604,7 @@ void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition)
 #endif
 }
 
-void organismRunStep(Organism *org, Organism **orgsByPosition, Simulation* sim, int currentStep)
+void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOrgsByPosition, Simulation* sim, int currentStep)
 {
 
     if (!org->alive)
@@ -621,7 +623,7 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Simulation* sim, 
     if (!org->alive)
         return;
 
-    handleCollisions(org, sim, orgsByPosition);
+    handleCollisions(org, sim, orgsByPosition, prevOrgsByPosition);
 }
 
 uint32_t rand_uint32(void)

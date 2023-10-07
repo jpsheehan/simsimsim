@@ -33,11 +33,11 @@ int main(int argc, const char* argv[])
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 1;
+    sim.maxInternalNeurons = 2;
+    sim.numberOfGenes = 4;
     sim.population = 1000;
     sim.stepsPerGeneration = 150;
-    sim.numberOfGenes = 2;
-    sim.maxGenerations = 10000;
+    sim.maxGenerations = 1000;
 
     runSimulation(&sim);
 
