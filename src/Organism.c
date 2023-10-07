@@ -335,7 +335,7 @@ Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
 }
 
 // Sets the organism's position in the LUT if it is alive.
-void setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism* org)
+void inline setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism* org)
 {
     if (!org->alive) return;
 
@@ -432,21 +432,22 @@ void computeNeuronStates(Organism* org)
         for (int i = 0; i < org->net.connectionCount; i++) {
             NeuralConnection *connection = &org->net.connections[i];
 
+            // if the connection has already been visited then skip
+            if (connection->visited) {
+                continue;
+            }
+
             Neuron *source = findNeuronById(org->net.neurons, org->net.neuronCount,
                                             connection->sourceId);
-            Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount,
-                                          connection->sinkId);
 
             // if the source has inputs and they haven't been fulfilled then don't do
             // anything here yet
             if (source->inputs && (source->inputsVisited < source->inputs)) {
                 continue;
             }
-
-            // if the connection has already been visited then skip
-            if (connection->visited) {
-                continue;
-            }
+            
+            Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount,
+                                          connection->sinkId);
 
             if (sink == source) {
                 sink->state += connection->weight * source->prevState;
