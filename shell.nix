@@ -9,6 +9,7 @@
         valgrind
         gdb
         gnumake
+        astyle
     ];
     shellHook = ''
     '';
