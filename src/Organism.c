@@ -8,7 +8,7 @@
 #include "Common.h"
 #include "Geometry.h"
 
-#define SIM_COLLISION_DEATHS true
+#define SIM_COLLISION_DEATHS false
 
 static char *InputTypeStrings[IN_MAX] = {"WORLD_X",
                                          "WORLD_Y",
@@ -26,7 +26,8 @@ static char *OutputTypeStrings[OUT_MAX] = {
 
 void organismDestroyNeuralNet(Organism *org);
 
-Gene intToGene(uint32_t n) {
+Gene intToGene(uint32_t n)
+{
     return (Gene) {
         .sourceIsInput = (bool)((n >> 31) & 0x01),
         .sourceId = (uint8_t)((n >> 24) & 0x7f),
@@ -36,13 +37,15 @@ Gene intToGene(uint32_t n) {
     };
 }
 
-uint32_t geneToInt(Gene *gene) {
+uint32_t geneToInt(Gene *gene)
+{
     return (uint32_t)(((gene->sourceIsInput << 7) | gene->sourceId) << 24) |
            (uint32_t)(((gene->sinkIsOutput << 7) | gene->sinkId) << 16) |
            (uint32_t)gene->weight;
 }
 
-void testGeneCreation() {
+void testGeneCreation()
+{
     uint32_t geneInt = rand() % UINT32_MAX;
 
     Gene gene = intToGene(geneInt);
@@ -55,13 +58,15 @@ void testGeneCreation() {
     }
 }
 
-char *geneToString(Gene *gene) {
+char *geneToString(Gene *gene)
+{
     char *buffer = calloc(9, sizeof(char));
     snprintf(buffer, 9, "%08X", geneToInt(gene));
     return buffer;
 }
 
-char *genomeToString(Genome *genome) {
+char *genomeToString(Genome *genome)
+{
     size_t size = 9 * genome->count + 1;
     char *buffer = calloc(size, sizeof(char));
     for (int i = 0; i < genome->count; i++) {
@@ -78,7 +83,8 @@ char *genomeToString(Genome *genome) {
 Genome reproduce(Genome *a, Genome *b);
 void organismBuildNeuralNet(Organism *org, Simulation *sim);
 
-Genome mutate(Genome genome, float mutationRate) {
+Genome mutate(Genome genome, float mutationRate)
+{
     if ((float)rand() / (float)RAND_MAX >= mutationRate) {
         return genome;
     }
@@ -91,11 +97,12 @@ Genome mutate(Genome genome, float mutationRate) {
     return genome;
 }
 
-Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism *otherOrgs,
-                       int otherOrgsCount) {
+Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition)
+{
     Organism org = {
         .pos =
-        (Pos) {
+        (Pos)
+        {
             .x = rand() % sim->size.w,
             .y = rand() % sim->size.h,
         },
@@ -106,7 +113,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism *othe
         .direction = getRandomDirection()
     };
 
-    while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) != NULL ||
+    while (getOrganismByPos(org.pos, sim, orgsByPosition, false) != NULL ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
         org.pos.x = rand() % sim->size.w;
         org.pos.y = rand() % sim->size.h;
@@ -117,14 +124,16 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism *othe
     return org;
 }
 
-void destroyOrganism(Organism *org) {
+void destroyOrganism(Organism *org)
+{
     organismDestroyNeuralNet(org);
     free(org->genome.genes);
     org->genome.genes = NULL;
     org->genome.count = 0;
 }
 
-void dumpOrganismNet(Organism *org) {
+void dumpOrganismNet(Organism *org)
+{
     printf("BREAKDOWN OF NET:\n");
     for (int i = 0; i < org->net.connectionCount; i++) {
         NeuralConnection *connection = &org->net.connections[i];
@@ -157,7 +166,8 @@ void dumpOrganismNet(Organism *org) {
 }
 
 void findMates(Organism orgs[], int population, Organism **outA,
-               Organism **outB) {
+               Organism **outB)
+{
     // finds two distinct organisms that are alive
     *outA = NULL;
     *outB = NULL;
@@ -183,7 +193,8 @@ void findMates(Organism orgs[], int population, Organism **outA,
     }
 }
 
-Genome reproduce(Genome *a, Genome *b) {
+Genome reproduce(Genome *a, Genome *b)
+{
     int largerCount = a->count > b->count ? a->count : b->count;
 
     Genome genome = {.count = largerCount,
@@ -207,7 +218,8 @@ Genome reproduce(Genome *a, Genome *b) {
     return genome;
 }
 
-Neuron *findNeuronById(Neuron *neurons, size_t n, uint16_t id) {
+Neuron *findNeuronById(Neuron *neurons, size_t n, uint16_t id)
+{
     for (int i = 0; i < n; i++) {
         if (neurons[i].id == id) {
             return &neurons[i];
@@ -216,7 +228,8 @@ Neuron *findNeuronById(Neuron *neurons, size_t n, uint16_t id) {
     return NULL;
 }
 
-void organismBuildNeuralNet(Organism *org, Simulation* sim) {
+void organismBuildNeuralNet(Organism *org, Simulation* sim)
+{
     Neuron neurons[128] = {0};
     uint8_t usedNeurons = 0;
 
@@ -301,7 +314,8 @@ void organismBuildNeuralNet(Organism *org, Simulation* sim) {
     // 16384); printf("Net sink is %p, source is %p\n", sink, source);
 }
 
-void organismDestroyNeuralNet(Organism *org) {
+void organismDestroyNeuralNet(Organism *org)
+{
     free(org->net.connections);
     free(org->net.neurons);
     org->net.connections = NULL;
@@ -310,20 +324,42 @@ void organismDestroyNeuralNet(Organism *org) {
     org->net.neuronCount = 0;
 }
 
-Organism *getOrganismByPos(Pos pos, Organism *orgs, int orgsCount,
-                           bool aliveOnly) {
-    for (int i = 0; i < orgsCount; i++) {
-        Organism *org = &orgs[i];
+bool inRange(int minInclusive, int x, int maxExclusive)
+{
+    return x >= minInclusive && x < maxExclusive;
+}
 
-        if (pos.x == org->pos.x && pos.y == org->pos.y) {
-            if ((aliveOnly && org->alive) || !aliveOnly)
-                return org;
-        }
+Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
+                           bool aliveOnly)
+{
+    if (!inRange(0, pos.x, sim->size.w) ||
+            !inRange(0, pos.y, sim->size.h)) {
+        return NULL;
     }
+
+    Organism* org = orgsByPosition[pos.y * sim->size.w + pos.x];
+
+    if (org == NULL) {
+        return NULL;
+    }
+
+    if ((aliveOnly && org->alive) || !aliveOnly) {
+        return org;
+    }
+
     return NULL;
 }
 
-void organismMoveBackIntoZone(Organism *org, Simulation* sim) {
+// Sets the organism's position in the LUT if it is alive.
+void setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism* org)
+{
+    if (!org->alive) return;
+
+    orgsByPosition[sim->size.w * org->pos.y + org->pos.x] = org;
+}
+
+void organismMoveBackIntoZone(Organism *org, Simulation* sim)
+{
     // Pos original = org->pos;
     if (org->pos.x >= sim->size.w) {
         org->pos.x = sim->size.w - 1;
@@ -340,15 +376,8 @@ void organismMoveBackIntoZone(Organism *org, Simulation* sim) {
     // }
 }
 
-void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int otherOrgsCount,
-                     int currentStep, int maxStep) {
-
-    if (!org->alive)
-        return;
-
-    Pos originalPosition = org->pos;
-
-    // reset
+void resetNeuronState(Organism* org)
+{
     for (int i = 0; i < org->net.connectionCount; i++) {
         org->net.connections[i].visited = false;
         org->didCollide = false;
@@ -359,8 +388,10 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
         org->net.neurons[i].prevState = org->net.neurons[i].state;
         org->net.neurons[i].state = 0.0f;
     }
+}
 
-    // excite
+void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism* org, int currentStep)
+{
     for (int i = 0; i < org->net.neuronCount; i++) {
         Neuron *input = &org->net.neurons[i];
         if (input->type != NEURON_INPUT) {
@@ -375,7 +406,7 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
             input->state = (float)org->pos.y / (float)sim->size.h;
             break;
         case IN_AGE:
-            input->state = (float)currentStep / (float)maxStep;
+            input->state = (float)currentStep / (float)sim->stepsPerGeneration;
             break;
         case IN_COLLIDE:
             input->state = org->didCollide ? 1.0 : 0.0;
@@ -389,7 +420,7 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
             // outputs should operate on the new state
             if (getOrganismByPos(
                         addPos(org->pos, moveInDirection(org->pos, org->direction)),
-                        otherOrgs, otherOrgsCount, true)) {
+                        sim, prevOrgsByPosition, true)) {
                 input->state = 1.0f;
             } else {
                 input->state = 0.0f;
@@ -407,8 +438,10 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
         if (fabs(input->state) > 1.0f)
             printf("Excited neuron #%d to level %.2f\n", input->id, input->state);
     }
+}
 
-    // compute
+void computeNeuronStates(Organism* org)
+{
     int visits;
     do {
         visits = 0;
@@ -416,10 +449,13 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
         for (int i = 0; i < org->net.connectionCount; i++) {
             NeuralConnection *connection = &org->net.connections[i];
 
+            // if the connection has already been visited then skip
+            if (connection->visited) {
+                continue;
+            }
+
             Neuron *source = findNeuronById(org->net.neurons, org->net.neuronCount,
                                             connection->sourceId);
-            Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount,
-                                          connection->sinkId);
 
             // if the source has inputs and they haven't been fulfilled then don't do
             // anything here yet
@@ -427,10 +463,8 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
                 continue;
             }
 
-            // if the connection has already been visited then skip
-            if (connection->visited) {
-                continue;
-            }
+            Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount,
+                                          connection->sinkId);
 
             if (sink == source) {
                 sink->state += connection->weight * source->prevState;
@@ -456,8 +490,10 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
             // source->inputs);
         }
     } while (visits > 0);
+}
 
-    // act
+void performNeuronOutputs(Organism* org, Pos originalPosition, Organism** orgsByPosition, Simulation* sim)
+{
     bool didMove = false;
     for (int i = 0; i < org->net.neuronCount; i++) {
         Neuron *output = &org->net.neurons[i];
@@ -530,11 +566,14 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
         org->alive = false;
         org->energyLevel = 0.0f;
         org->pos = originalPosition;
-        return;
+        setOrganismByPosition(sim, orgsByPosition, org);
     } else if (org->energyLevel > 1.0f) {
         org->energyLevel = 1.0f;
     }
+}
 
+void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition, Organism** prevOrgsByPosition)
+{
     // collisions
     organismMoveBackIntoZone(org, sim);
 
@@ -546,25 +585,54 @@ void organismRunStep(Organism *org, Organism *otherOrgs, Simulation* sim, int ot
         if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
                 isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
             org->alive = false;
+            setOrganismByPosition(sim, orgsByPosition, org);
             return;
         }
     }
 #else
-    while (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
+    Organism* collidedOrg;
+    while ((collidedOrg = getOrganismByPos(org->pos, sim, prevOrgsByPosition, true)) ||
             isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
+        if (collidedOrg == org) break;
         org->didCollide = true;
         org->pos.x += rand() % 3 - 1;
         org->pos.y += rand() % 3 - 1;
         organismMoveBackIntoZone(org, sim);
     }
+
+    setOrganismByPosition(sim, orgsByPosition, org);
 #endif
 }
 
-uint32_t rand_uint32(void) {
+void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOrgsByPosition, Simulation* sim, int currentStep)
+{
+
+    if (!org->alive)
+        return;
+
+    Pos originalPosition = org->pos;
+
+    resetNeuronState(org);
+
+    exciteInputNeurons(sim, orgsByPosition, org, currentStep);
+
+    computeNeuronStates(org);
+
+    performNeuronOutputs(org, originalPosition, orgsByPosition, sim);
+
+    if (!org->alive)
+        return;
+
+    handleCollisions(org, sim, orgsByPosition, prevOrgsByPosition);
+}
+
+uint32_t rand_uint32(void)
+{
     return (uint32_t)((uint16_t)(rand()) << 16) | (uint16_t)rand();
 }
 
-Genome makeRandomGenome(uint8_t numGenes) {
+Genome makeRandomGenome(uint8_t numGenes)
+{
     Genome genome = {.count = numGenes, .genes = calloc(numGenes, sizeof(Gene))};
 
     for (int i = 0; i < numGenes; i++) {
@@ -574,18 +642,18 @@ Genome makeRandomGenome(uint8_t numGenes) {
     return genome;
 }
 
-Organism makeRandomOrganism(uint8_t numGenes, Simulation* sim,
-                            Organism *otherOrgs, int otherOrgsCount) {
+Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
+{
     Organism org = {
         .pos = (Pos){.x = rand() % sim->size.w, .y = rand() % sim->size.h},
-        .genome = makeRandomGenome(numGenes),
+        .genome = makeRandomGenome(sim->numberOfGenes),
         .alive = true,
         .didCollide = false,
         .energyLevel = 1.0,
         .direction = getRandomDirection()
     };
 
-    while (getOrganismByPos(org.pos, otherOrgs, otherOrgsCount, false) ||
+    while (getOrganismByPos(org.pos, sim, orgsByPosition, false) ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
         org.pos.x = rand() % sim->size.w;
         org.pos.y = rand() % sim->size.h;

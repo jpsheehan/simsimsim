@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
 #include "Simulator.h"
 #include "Selectors.h"
@@ -9,8 +10,7 @@ int main(int argc, const char* argv[])
 {
     Simulation sim;
 
-    if (argc == 2)
-    {
+    if (argc == 2) {
         if (sscanf(argv[1], "%d", &sim.seed) != 1) {
             fprintf(stderr, "Could not parse seed from argument.\n");
             sim.seed = time(NULL);
@@ -24,20 +24,20 @@ int main(int argc, const char* argv[])
         (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
     };
 
-    sim.selector = &leftSelector;
+    sim.selector = &centerSelector;
     sim.mutationRate = 0.01;
     sim.obstacles = obstacles;
-    sim.obstaclesCount = 2;
+    sim.obstaclesCount = 0;
     sim.size = (Size) {
         .w = 128, .h = 128
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 1;
+    sim.maxInternalNeurons = 2;
+    sim.numberOfGenes = 4;
     sim.population = 1000;
     sim.stepsPerGeneration = 150;
-    sim.numberOfGenes = 4;
-    sim.maxGenerations = 100;
+    sim.maxGenerations = 1000;
 
     runSimulation(&sim);
 

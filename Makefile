@@ -2,10 +2,12 @@ SRC=./src
 INC=./include
 OBJ=./obj
 CC=gcc
-CFLAGS=-g -Wall -I./$(INC)
-LFLAGS=-lm `pkg-config --libs sdl2 SDL_image`
+CFLAGS=-g -Wall -I$(INC)
+LFLAGS=-lm -lpthread `pkg-config --libs sdl2 SDL2_image SDL2_ttf`
+SEED=123123
+EXE=./life
 
-life: $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o
+$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
 
 $(OBJ)/Direction.o: $(SRC)/Direction.c $(INC)/Direction.h $(INC)/Common.h
@@ -18,7 +20,7 @@ $(OBJ)/Program.o: $(SRC)/Program.c $(INC)/Simulator.h $(INC)/Selectors.h $(INC)/
 	$(CC) $< $(CFLAGS) -c -o $@
 
 $(OBJ)/Visualiser.o: $(SRC)/Visualiser.c $(INC)/Simulator.h $(INC)/Common.h
-	$(CC) $< $(CFLAGS) -c -o $@ `pkg-config --cflags sdl2 SDL_image`
+	$(CC) $< $(CFLAGS) -c -o $@ `pkg-config --cflags sdl2 SDL2_image SDL2_ttf`
 
 $(OBJ)/Simulator.o: $(SRC)/Simulator.c $(INC)/Simulator.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
@@ -30,6 +32,15 @@ $(OBJ)/Selectors.o: $(SRC)/Selectors.c $(INC)/Selectors.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:
-	rm -f $(OBJ)/*.o life
+	rm -f $(OBJ)/*.o $(EXE)
 
-.PHONY: clean
+cachegrind: $(EXE)
+	valgrind --tool=cachegrind $(EXE) $(SEED)
+
+callgrind: $(EXE)
+	valgrind --tool=callgrind $(EXE) $(SEED)
+
+format:
+	astyle --style=kr --recursive ./*.c,*.h
+
+.PHONY: clean cachegrind callgrind format

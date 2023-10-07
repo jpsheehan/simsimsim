@@ -10,6 +10,8 @@
         gdb
         gnumake
         astyle
+        kcachegrind
+        clang
     ];
     shellHook = ''
     '';
