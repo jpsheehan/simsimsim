@@ -48,7 +48,7 @@ static volatile bool drawableOrgsWriteablePopulated;
 static volatile bool drawableOrgsReadablePopulated;
 static sem_t drawableOrgsLock;
 static bool paused = true;
-static bool fastPlay = true;
+static bool fastPlay = false;
 static bool withDelay = true;
 
 void visDrawShell(void);
@@ -424,7 +424,8 @@ void visSendGeneration(Organism *orgs, int g)
 
     sem_post(&drawableOrgsLock);
     
-    simSendFramePause();
+    if (withDelay)
+        simSendFramePause();
 }
 
 void visSendQuit(void)
@@ -451,7 +452,8 @@ void visSendStep(Organism* orgs, int s)
 
     sem_post(&drawableOrgsLock);
     
-    simSendFramePause();
+    if (withDelay)
+        simSendFramePause();
 }
 
 void runUserInterface(Simulation* s)
@@ -484,7 +486,7 @@ void runUserInterface(Simulation* s)
             SDL_Delay(1000 / FPS);
         }
 
-        if (!paused) {
+        if (!paused && withDelay) {
             simSendFrameContinue();
         }
     }
