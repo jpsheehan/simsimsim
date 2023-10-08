@@ -10,6 +10,6 @@ void visSendStep(Organism* orgs, int step);
 void visSendQuit(void);
 void visSendReady(void);
 
-void runUserInterface(SharedThreadState*);
+void runUserInterface(Simulation*);
 
 #endif

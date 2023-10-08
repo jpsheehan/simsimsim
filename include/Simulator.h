@@ -3,7 +3,7 @@
 
 #include "Common.h"
 
-void runSimulation(SharedThreadState*);
+void runSimulation(Simulation*);
 void simSendReady(void);
 void simSendQuit(void);
 

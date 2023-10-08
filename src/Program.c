@@ -1,19 +1,26 @@
-#include <semaphore.h>
+#include "Features.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+
+#if FEATURE_VISUALISER
 #include <pthread.h>
+#include <semaphore.h>
+#endif
 
 #include "Common.h"
-#include "Queue.h"
 #include "Simulator.h"
 #include "Selectors.h"
 #include "Visualiser.h"
 
 void* simWorker(void* args);
+
+#if FEATURE_VISUALISER
 void* uiWorker(void* args);
 extern sem_t simulatorReadyLock;
 extern sem_t visualiserReadyLock;
+#endif
 
 int main(int argc, const char* argv[])
 {
@@ -46,46 +53,40 @@ int main(int argc, const char* argv[])
     sim.numberOfGenes = 4;
     sim.population = 1000;
     sim.stepsPerGeneration = 150;
-    sim.maxGenerations = 1000;
+    sim.maxGenerations = 20;
 
-    Queue simInbox, uiInbox;
-
-    createQueue(&uiInbox, 200);
-    createQueue(&simInbox, 200);
-
-    SharedThreadState state = {
-        .sim = &sim,
-        .simInbox = &simInbox,
-        .uiInbox = &uiInbox
-    };
-
+#if FEATURE_VISUALISER
     sem_init(&simulatorReadyLock, 0, 0);
     sem_init(&visualiserReadyLock, 0, 0);
 
     pthread_t simThread, uiThread;
 
-    pthread_create(&uiThread, NULL, uiWorker, &state);
-    pthread_create(&simThread, NULL, simWorker, &state);
+    pthread_create(&uiThread, NULL, uiWorker, &sim);
+    pthread_create(&simThread, NULL, simWorker, &sim);
 
     pthread_join(uiThread, NULL);
     pthread_join(simThread, NULL);
 
     sem_destroy(&visualiserReadyLock);
     sem_destroy(&simulatorReadyLock);
-
+#else
+    runSimulation(&sim);
+#endif
     return EXIT_SUCCESS;
 }
 
+#if FEATURE_VISUALISER
 void* simWorker(void* args)
 {
-    SharedThreadState* state = (SharedThreadState*)args;
-    runSimulation(state);
+    Simulation* sim = (Simulation*)args;
+    runSimulation(sim);
     return NULL;
 }
 
 void* uiWorker(void* args)
 {
-    SharedThreadState* state = (SharedThreadState*)args;
-    runUserInterface(state);
+    Simulation* sim = (Simulation*)args;
+    runUserInterface(sim);
     return NULL;
 }
+#endif

@@ -1,3 +1,5 @@
+#include "Features.h"
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_keycode.h>
@@ -36,7 +38,6 @@ static SDL_Texture* fileTexture = NULL;
 static SDL_Surface* fileSurface = NULL;
 static float survivalRate;
 static float previousSurvivalRate = -1.0f;
-static Queue* inbox, *outbox;
 static volatile bool interrupted = false;
 static Simulation *sim;
 
@@ -263,24 +264,12 @@ void visDrawStep(void)
 
     if (interrupted) return;
 
-    if (drawableOrgsGenerationChanged && drawableOrgsReadablePopulated)
-    {
-        for (int i = 0; i < sim->population; i++) {
-            destroyOrganism(&drawableOrgsRead[i]);
-        }
-    }
-
     if (drawableOrgsGenerationChanged || drawableOrgsStepChanged) {
-
-        if (!drawableOrgsReadablePopulated)
-        {
-            drawableOrgsRead = calloc(sim->population, sizeof(Organism));
-            drawableOrgsReadablePopulated = true;
-        }
 
         sem_wait(&drawableOrgsLock);
 
         for (int i = 0; i < sim->population; i++) {
+            destroyOrganism(&drawableOrgsRead[i]);
             drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i]);
         }
         drawableOrgsGenerationChanged = false;
@@ -371,10 +360,20 @@ void visDrawStep(void)
 void visDestroy(void)
 {
     SDL_FreeSurface(fileSurface);
+    fileSurface = NULL;
+
     SDL_DestroyTexture(fileTexture);
+    fileTexture = NULL;
+
     TTF_CloseFont(font);
+    font = NULL;
+
     SDL_DestroyRenderer(renderer);
+    renderer = NULL;
+
     SDL_DestroyWindow(window);
+    window = NULL;
+
     TTF_Quit();
 #if FEATURE_SAVE_IMAGES
     IMG_Quit();
@@ -456,11 +455,9 @@ void visSendStep(Organism* orgs, int s)
     simSendFramePause();
 }
 
-void runUserInterface(SharedThreadState* sharedThreadState)
+void runUserInterface(Simulation* s)
 {
-    sim = sharedThreadState->sim;
-    inbox = sharedThreadState->uiInbox;
-    outbox = sharedThreadState->simInbox;
+    sim = s;
 
     drawableOrgsWrite = calloc(sim->population, sizeof(Organism));
     drawableOrgsRead = calloc(sim->population, sizeof(Organism));
@@ -517,6 +514,8 @@ void runUserInterface(SharedThreadState* sharedThreadState)
     }
 
     sem_destroy(&drawableOrgsLock);
+
+    visDestroy();
 }
 
 #else
@@ -525,7 +524,7 @@ void visSendGeneration(Organism *orgs, int generation) {}
 void visSendStep(Organism *orgs, int step) {}
 void visSendQuit(void) {}
 
-void runUserInterface(SharedThreadState *state)
+void runUserInterface(Simulation *sim)
 {
     simSendReady();
     sem_wait(&visualiserReadyLock);
@@ -536,5 +535,5 @@ void runUserInterface(SharedThreadState *state)
 void visSendReady(void)
 {
     sem_post(&visualiserReadyLock);
-    // printf("visSendReady() #unlocked\n");
+    printf("visSendReady() #unlocked\n");
 }

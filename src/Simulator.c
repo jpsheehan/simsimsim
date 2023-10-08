@@ -8,6 +8,7 @@
 #include <time.h>
 #include <semaphore.h>
 
+#include "Features.h"
 #include "Common.h"
 #include "Simulator.h"
 #include "Visualiser.h"
@@ -15,16 +16,20 @@
 #include "Organism.h"
 
 static volatile bool interrupted = false;
+#if FEATURE_VISUALISER
 static sem_t paused;
 static sem_t framePaused;
 sem_t simulatorReadyLock;
+#endif
 
 void signalHandler(int sig)
 {
     if (sig == SIGINT) {
         interrupted = true;
+#if FEATURE_VISUALISER
         sem_post(&paused);
         sem_post(&framePaused);
+#endif
         // printf("Interrupt sent\n");
     }
 }
@@ -32,36 +37,51 @@ void signalHandler(int sig)
 void simSendQuit(void)
 {
     interrupted = true;
+#if FEATURE_VISUALISER
     sem_post(&paused);
     sem_post(&framePaused);
+#endif
     // printf("Quit sent\n");
 }
 
 void simSendReady(void)
 {
+#if FEATURE_VISUALISER
     sem_post(&simulatorReadyLock);
+    printf("simSendReady() #unlocked\n");
+#endif
 }
 
 void simSendPause(void) {
+#if FEATURE_VISUALISER
     sem_wait(&paused);
+#endif
 }
 void simSendContinue(void) {
+#if FEATURE_VISUALISER
     sem_post(&paused);
+#endif
 }
 
 void simSendFramePause(void) {
+#if FEATURE_VISUALISER
     sem_wait(&framePaused);
+#endif
 }
 
 void simSendFrameContinue(void) {
+#if FEATURE_VISUALISER
     sem_post(&framePaused);
+#endif
 }
 
-void runSimulation(SharedThreadState *sharedThreadState)
+void runSimulation(Simulation *s)
 {
-    Simulation *sim = sharedThreadState->sim;
+    Simulation *sim = s;
+#if FEATURE_VISUALISER
     sem_init(&paused, 0, 1);
     sem_init(&framePaused, 0, 0);
+#endif
 
     signal(SIGINT, &signalHandler);
 
@@ -87,20 +107,26 @@ void runSimulation(SharedThreadState *sharedThreadState)
     clock_gettime(CLOCK_REALTIME, &ts);
     lastTimeInMicroseconds = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 
+#if FEATURE_VISUALISER
     sem_wait(&simulatorReadyLock);
     if (interrupted) goto quitOuterLoop;
+#endif
     visSendReady();
 
     for (int g = 0; g < sim->maxGenerations; g++) {
         visSendGeneration(orgs, g);
 
+#if FEATURE_VISUALISER
         sem_wait(&paused);
         sem_post(&paused);
         if (interrupted) goto quitOuterLoop;
+#endif
 
+#if FEATURE_VISUALISER
         sem_wait(&framePaused);
         sem_post(&framePaused);
         if (interrupted) goto quitOuterLoop;
+#endif
 
         for (int step = 0; step < sim->stepsPerGeneration; step++) {
             memcpy(prevOrgsByPosition, orgsByPosition, sim->size.h * sim->size.w * sizeof(Organism*));
@@ -108,22 +134,22 @@ void runSimulation(SharedThreadState *sharedThreadState)
 
             visSendStep(orgs, step);
 
+#if FEATURE_VISUALISER
             sem_wait(&paused);
             sem_post(&paused);
             if (interrupted) goto quitOuterLoop;
+#endif
 
+#if FEATURE_VISUALISER
             sem_wait(&framePaused);
             sem_post(&framePaused);
             if (interrupted) goto quitOuterLoop;
+#endif
 
             for (int i = 0; i < sim->population; i++) {
                 organismRunStep(&orgs[i], orgsByPosition, prevOrgsByPosition, sim, step);
             }
-            // int fpVal, pVal;
-            // sem_getvalue(&paused, &pVal);
-            // sem_getvalue(&framePaused, &fpVal);
-            // printf("Finished calculating step %d (paused = %d, framePaused = %d)\n", step, pVal, fpVal);
-            
+
             if (interrupted) goto quitOuterLoop;
         }
 
@@ -151,13 +177,17 @@ void runSimulation(SharedThreadState *sharedThreadState)
 
         visSendStep(orgs, sim->stepsPerGeneration - 1);
 
+#if FEATURE_VISUALISER
         sem_wait(&paused);
         sem_post(&paused);
         if (interrupted) goto quitOuterLoop;
+#endif
 
+#if FEATURE_VISUALISER
         sem_wait(&framePaused);
         sem_post(&framePaused);
         if (interrupted) goto quitOuterLoop;
+#endif
 
         float survivalRate = (float)survivors * 100.0f / sim->population;
 
@@ -215,8 +245,11 @@ quitOuterLoop:
         destroyOrganism(&orgs[i]);
     }
 
+#if FEATURE_VISUALISER
     sem_destroy(&paused);
     sem_destroy(&framePaused);
+#endif
+
     free(orgs);
     free(nextGenOrgs);
     free(orgsByPosition);
