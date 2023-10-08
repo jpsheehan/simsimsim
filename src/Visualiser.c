@@ -1,5 +1,7 @@
 #include "Features.h"
 #include "Common.h"
+#include "SDL_blendmode.h"
+#include "SDL_render.h"
 
 #if FEATURE_VISUALISER
 
@@ -55,6 +57,7 @@ static bool paused = true;
 static bool withDelay = true;
 static float* survivalRatesEachStep;
 static float* survivalRatesEachGeneration;
+static OrganismId selectedOrganism;
 
 void visDrawShell(void);
 
@@ -114,6 +117,7 @@ void visInit(uint32_t w, uint32_t h)
     paddingTop = (WIN_H - (SIM_SCALE * h)) / 2;
     paddingLeft = paddingTop;
     survivalRate = 100.0f;
+    selectedOrganism = -1;
 
     fileTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_TARGET, WIN_W, WIN_H);
     int width, height;
@@ -322,6 +326,37 @@ void handleEvents()
     }
 }
 
+SDL_Color getOrganismBaseColor(Organism* org)
+{
+    if (org->alive && org->mutated) {
+        return (SDL_Color){
+            .r = 0, .g = 128, .b = 0, .a = 255
+        };
+    }
+
+    if (org->alive && !org->mutated) {
+        return (SDL_Color){
+            .r = 255, .g = 0, .b = 0, .a = 255
+        };
+    }
+
+    if (!org->alive && org->mutated) {
+        return (SDL_Color){
+            .r = 0, .g = 64, .b = 0, .a = 255
+        };
+    }
+
+    // not alive, not mutated
+    return (SDL_Color){
+        .r = 0, .g = 0, .b = 0, .a = 255
+    };
+}
+
+void setRenderDrawColor(SDL_Color color)
+{
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+}
+
 void visDrawStep(void)
 {
     handleEvents();
@@ -349,30 +384,24 @@ void visDrawStep(void)
     visDrawShell();
 
     if (drawableOrgsReadablePopulated) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         for (int i = 0; i < sim->population; i++) {
             Organism *org = &drawableOrgsRead[i];
+            SDL_Color color = getOrganismBaseColor(org);
 
-            if (org->alive) {
-                SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-            } else {
-                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            }
+            setRenderDrawColor(color);
+            SDL_RenderDrawPoint(renderer, paddingLeft + SIM_SCALE * org->pos.x + 1, paddingTop + SIM_SCALE * org->pos.y + 1);
 
-            SDL_Point fullPoints[5] = {
+            SDL_Point fullPoints[4] = {
                 (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y},
-                (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
                 (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y + 2},
                 (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
                 (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
             };
-            SDL_RenderDrawPoints(renderer, fullPoints, 5);
+            color.a = 128;
+            setRenderDrawColor(color);
+            SDL_RenderDrawPoints(renderer, fullPoints, 4);
 
-            if (org->alive) {
-                SDL_SetRenderDrawColor(renderer, 255, 0, 0, 32);
-            } else {
-                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 32);
-            }
-            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             fullPoints[0] = (SDL_Point) {
                 .x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y
             };
@@ -385,8 +414,11 @@ void visDrawStep(void)
             fullPoints[3] = (SDL_Point) {
                 .x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y
             };
+            color.a = 32;
+            setRenderDrawColor(color);
             SDL_RenderDrawPoints(renderer, fullPoints, 4);
         }
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 
     SDL_RenderPresent(renderer);
@@ -492,6 +524,7 @@ void visSendGeneration(Organism *orgs, int g)
 
     generation = g;
     step = 0;
+    selectedOrganism = -1;
 
     if (generation > 0) {
         previousSurvivalRate = survivalRate;

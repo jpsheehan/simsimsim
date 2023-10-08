@@ -70,9 +70,12 @@ char *genomeToString(Genome *genome)
     return buffer;
 }
 
-Genome mutateGenome(Genome genome, float mutationRate)
+Genome mutateGenome(Genome genome, float mutationRate, bool* didMutate)
 {
     if ((float)rand() / (float)RAND_MAX >= mutationRate) {
+        if (didMutate != NULL) {
+            *didMutate = false;
+        }
         return genome;
     }
 
@@ -81,6 +84,11 @@ Genome mutateGenome(Genome genome, float mutationRate)
     int geneInt = geneToInt(&genome.genes[idx]);
     geneInt = geneInt ^ (1 << (rand() % 32));
     genome.genes[idx] = intToGene(geneInt);
+    
+    if (didMutate != NULL) {
+        *didMutate = true;
+    }
+    
     return genome;
 }
 
@@ -95,6 +103,31 @@ Genome makeRandomGenome(uint8_t numGenes)
 
     for (int i = 0; i < numGenes; i++) {
         genome.genes[i] = intToGene(rand_uint32());
+    }
+
+    return genome;
+}
+
+Genome reproduce(Genome *a, Genome *b)
+{
+    int largerCount = a->count > b->count ? a->count : b->count;
+
+    Genome genome = {.count = largerCount,
+                     .genes = calloc(largerCount, sizeof(Gene))
+                    };
+
+    for (int i = 0; i < largerCount; i++) {
+        if (i < a->count && i < b->count) {
+            if (rand() % 2 == 0) {
+                genome.genes[i] = a->genes[i];
+            } else {
+                genome.genes[i] = b->genes[i];
+            }
+        } else if (i < a->count) {
+            genome.genes[i] = a->genes[i];
+        } else {
+            genome.genes[i] = b->genes[i];
+        }
     }
 
     return genome;

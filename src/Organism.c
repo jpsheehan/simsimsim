@@ -26,10 +26,6 @@ static char *OutputTypeStrings[OUT_MAX] = {
     "TURN_LEFT_RIGHT", "TURN_RANDOM"
 };
 
-
-Genome reproduce(Genome *a, Genome *b);
-void organismBuildNeuralNet(Organism *org, Simulation *sim);
-
 Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition)
 {
     Organism org = {
@@ -39,12 +35,13 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
             .x = rand() % sim->size.w,
             .y = rand() % sim->size.h,
         },
-        .genome = mutateGenome(reproduce(&a->genome, &b->genome), sim->mutationRate),
         .alive = true,
         .didCollide = false,
         .energyLevel = 1.0,
         .direction = getRandomDirection()
     };
+
+    org.genome = mutateGenome(reproduce(&a->genome, &b->genome), sim->mutationRate, &org.mutated);
 
     while (getOrganismByPos(org.pos, sim, orgsByPosition, false) != NULL ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
@@ -53,6 +50,8 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
     }
 
     org.net = buildNeuralNet(&org.genome, sim);
+    org.parentA = a->id;
+    org.parentB = b->id;
 
     return org;
 }
@@ -126,31 +125,6 @@ void findMates(Organism orgs[], int population, Organism **outA,
     }
 }
 
-Genome reproduce(Genome *a, Genome *b)
-{
-    int largerCount = a->count > b->count ? a->count : b->count;
-
-    Genome genome = {.count = largerCount,
-                     .genes = calloc(largerCount, sizeof(Gene))
-                    };
-
-    for (int i = 0; i < largerCount; i++) {
-        if (i < a->count && i < b->count) {
-            if (rand() % 2 == 0) {
-                genome.genes[i] = a->genes[i];
-            } else {
-                genome.genes[i] = b->genes[i];
-            }
-        } else if (i < a->count) {
-            genome.genes[i] = a->genes[i];
-        } else {
-            genome.genes[i] = b->genes[i];
-        }
-    }
-
-    return genome;
-}
-
 bool inRange(int minInclusive, int x, int maxExclusive)
 {
     return x >= minInclusive && x < maxExclusive;
@@ -187,7 +161,6 @@ void setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism*
 
 void organismMoveBackIntoZone(Organism *org, Simulation* sim)
 {
-    // Pos original = org->pos;
     if (org->pos.x >= sim->size.w) {
         org->pos.x = sim->size.w - 1;
     } else if (org->pos.x < 0) {
@@ -198,9 +171,6 @@ void organismMoveBackIntoZone(Organism *org, Simulation* sim)
     } else if (org->pos.y < 0) {
         org->pos.y = 0;
     }
-    // if (org->pos.x != original.x || org->pos.y != original.y) {
-    //   printf("Moved back into zone: (%d, %d)\n", org->pos.x, org->pos.y);
-    // }
 }
 
 void resetNeuronState(Organism* org)
@@ -433,7 +403,6 @@ void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition,
 
 void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOrgsByPosition, Simulation* sim, int currentStep)
 {
-
     if (!org->alive)
         return;
 
@@ -461,7 +430,8 @@ Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
         .alive = true,
         .didCollide = false,
         .energyLevel = 1.0,
-        .direction = getRandomDirection()
+        .direction = getRandomDirection(),
+        .mutated = false,
     };
 
     while (getOrganismByPos(org.pos, sim, orgsByPosition, false) ||

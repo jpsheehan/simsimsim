@@ -5,6 +5,7 @@
 
 Genome copyGenome(Genome* src);
 Genome makeRandomGenome(uint8_t numGenes);
-Genome mutateGenome(Genome genome, float mutationRate);
+Genome mutateGenome(Genome genome, float mutationRate, bool* didMutate);
+Genome reproduce(Genome *a, Genome *b);
 
 #endif

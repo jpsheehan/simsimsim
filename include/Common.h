@@ -105,8 +105,10 @@ typedef struct {
     int16_t h;
 } Rect;
 
+typedef uint16_t OrganismId;
+
 typedef struct {
-    uint16_t id;
+    OrganismId id;
     Pos pos;
     Genome genome;
     NeuralNet net;
@@ -114,6 +116,9 @@ typedef struct {
     bool didCollide;
     float energyLevel;
     Direction direction;
+    OrganismId parentA;
+    OrganismId parentB;
+    bool mutated;
 } Organism;
 
 struct __simulation_t;
