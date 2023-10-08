@@ -15,7 +15,6 @@ Genome copyGenome(Genome* src)
     return dest;
 }
 
-
 Gene intToGene(uint32_t n)
 {
     return (Gene) {
@@ -84,11 +83,11 @@ Genome mutateGenome(Genome genome, float mutationRate, bool* didMutate)
     int geneInt = geneToInt(&genome.genes[idx]);
     geneInt = geneInt ^ (1 << (rand() % 32));
     genome.genes[idx] = intToGene(geneInt);
-    
+
     if (didMutate != NULL) {
         *didMutate = true;
     }
-    
+
     return genome;
 }
 

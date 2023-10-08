@@ -170,7 +170,9 @@ void drawShellText(int row, SDL_Color color, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
-    drawTextF(font, (Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * row }, color, format, args);
+    drawTextF(font, (Pos) {
+        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * row
+    }, color, format, args);
     va_end(args);
 }
 
@@ -189,12 +191,13 @@ void drawGraph(const char* title, float* xs, size_t n, size_t maxN, Pos pos, Siz
     SDL_RenderDrawLine(renderer, pos.x, pos.y + size.h / 2, pos.x + size.w - 2, pos.y + size.h / 2);
     SDL_RenderDrawLine(renderer, pos.x, pos.y + 3 * size.h / 4, pos.x + size.w - 2, pos.y + 3 * size.h / 4);
 
-    if (n >= 2) 
-    {
+    if (n >= 2) {
         SDL_Point *points = calloc(n, sizeof(SDL_Point));
 
         for (int i = 0; i < n; i++) {
-            points[i] = (SDL_Point){ .x = border.x + 1 + (int)((border.w - 2) * (float)i / (float)maxN), .y = border.y + 1 + border.h - 2 - (int)((float)(border.h - 2) * xs[i])};
+            points[i] = (SDL_Point) {
+                .x = border.x + 1 + (int)((border.w - 2) * (float)i / (float)maxN), .y = border.y + 1 + border.h - 2 - (int)((float)(border.h - 2) * xs[i])
+            };
         }
 
         SDL_SetRenderDrawColor(renderer, lineColor.r, lineColor.g, lineColor.b, lineColor.a);
@@ -237,7 +240,9 @@ void visDrawShell(void)
     SDL_Color red = { .r = 255, .g = 0, .b = 0, .a = 255 };
     SDL_Color blue = { .r = 0, .g = 0, .b = 255, .a = 255 };
 
-    drawTextAt(titleFont, (Pos){ .x = paddingLeft, .y = 10 }, black, "Simulation");
+    drawTextAt(titleFont, (Pos) {
+        .x = paddingLeft, .y = 10
+    }, black, "Simulation");
 
     if (disconnected) {
         drawShellText(0, black, "State: Disconnected");
@@ -267,14 +272,24 @@ void visDrawShell(void)
     drawShellText(17, gray, "Gen. Pop.: %'d", sim->population);
     drawShellText(18, gray, "Gen. Count: %'d", sim->maxGenerations);
 
-    drawTextAt(font, (Pos){ .x = paddingLeft, .y = WIN_H - 35 }, black, "[ESC] = Quit");
+    drawTextAt(font, (Pos) {
+        .x = paddingLeft, .y = WIN_H - 35
+    }, black, "[ESC] = Quit");
 
-    drawTextAt(font, (Pos){ .x = paddingLeft + simW * 1 * SIM_SCALE / 3, .y = WIN_H - 35 }, disconnected ? lightGray : black, "[SPC] = %s", paused ? "Play" : "Pause");
-    drawTextAt(font, (Pos){ .x = paddingLeft + simW * 2 * SIM_SCALE / 3, .y = WIN_H - 35 }, disconnected || paused || (playSpeed == Stepping30FPS) ? lightGray : black, "[,] = Slower");
-    drawTextAt(font, (Pos){ .x = paddingLeft + simW * 3 * SIM_SCALE / 3, .y = WIN_H - 35 }, disconnected || paused || (playSpeed == SteppingWithoutDelay) ? lightGray : black, "[.] = Faster");
+    drawTextAt(font, (Pos) {
+        .x = paddingLeft + simW * 1 * SIM_SCALE / 3, .y = WIN_H - 35
+    }, disconnected ? lightGray : black, "[SPC] = %s", paused ? "Play" : "Pause");
+    drawTextAt(font, (Pos) {
+        .x = paddingLeft + simW * 2 * SIM_SCALE / 3, .y = WIN_H - 35
+    }, disconnected || paused || (playSpeed == Stepping30FPS) ? lightGray : black, "[,] = Slower");
+    drawTextAt(font, (Pos) {
+        .x = paddingLeft + simW * 3 * SIM_SCALE / 3, .y = WIN_H - 35
+    }, disconnected || paused || (playSpeed == SteppingWithoutDelay) ? lightGray : black, "[.] = Faster");
 
     Size graphSize = { .w = WIN_W - paddingLeft * 2 - simW * SIM_SCALE, .h = 45 };
-    Pos graphPos = (Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * 6 };
+    Pos graphPos = (Pos) {
+        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * 6
+    };
 
     drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration - 1, graphPos, graphSize, black, red, black);
 
@@ -340,27 +355,27 @@ SDL_Color getOrganismBaseColor(Organism* org)
 {
     // alive and mutated = bright green
     if (org->alive && org->mutated) {
-        return (SDL_Color){
+        return (SDL_Color) {
             .r = 0, .g = 255, .b = 0, .a = 255
         };
     }
 
     // alive and not-mutated = white
     if (org->alive && !org->mutated) {
-        return (SDL_Color){
+        return (SDL_Color) {
             .r = 255, .g = 255, .b = 255, .a = 255
         };
     }
 
     // not-alive and mutated = gray
     if (!org->alive && org->mutated) {
-        return (SDL_Color){
+        return (SDL_Color) {
             .r = 128, .g = 128, .b = 128, .a = 255
         };
     }
 
     // not alive, not mutated gray
-    return (SDL_Color){
+    return (SDL_Color) {
         .r = 128, .g = 128, .b = 128, .a = 255
     };
 }
@@ -629,8 +644,7 @@ void runUserInterface(Simulation* s)
 
         if (playSpeed == Stepping30FPS) {
             SDL_Delay(1000 / 30);
-        }
-        else if (playSpeed == Stepping60FPS) {
+        } else if (playSpeed == Stepping60FPS) {
             SDL_Delay(1000 / 60);
         }
 

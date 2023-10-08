@@ -163,7 +163,6 @@ void runSimulation(Simulation *s)
 
         if (interrupted) goto quitOuterLoop;
 
-
         int survivors = 0;
         int deadBeforeSelection = 0;
         int deadAfterSelection = 0;

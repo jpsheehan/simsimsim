@@ -154,7 +154,7 @@ typedef struct __simulation_t {
 #define TRACE_BEGIN TRACE("Begin");
 #define TRACE_END TRACE("End");
 #else
-#define TRACE(s) 
+#define TRACE(s)
 #define TRACE_BEGIN
 #define TRACE_END
 #endif
