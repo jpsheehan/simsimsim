@@ -7,6 +7,8 @@
 #include "Direction.h"
 #include "Common.h"
 #include "Geometry.h"
+#include "NeuralNet.h"
+#include "Genome.h"
 
 #define SIM_COLLISION_DEATHS false
 
@@ -24,78 +26,9 @@ static char *OutputTypeStrings[OUT_MAX] = {
     "TURN_LEFT_RIGHT", "TURN_RANDOM"
 };
 
-void organismDestroyNeuralNet(Organism *org);
-
-Gene intToGene(uint32_t n)
-{
-    return (Gene) {
-        .sourceIsInput = (bool)((n >> 31) & 0x01),
-        .sourceId = (uint8_t)((n >> 24) & 0x7f),
-        .sinkIsOutput = (bool)((n >> 23) & 0x01),
-        .sinkId = (uint8_t)((n >> 16) & 0x7f),
-        .weight = (uint16_t)(n & 0xffff),
-    };
-}
-
-uint32_t geneToInt(Gene *gene)
-{
-    return (uint32_t)(((gene->sourceIsInput << 7) | gene->sourceId) << 24) |
-           (uint32_t)(((gene->sinkIsOutput << 7) | gene->sinkId) << 16) |
-           (uint32_t)gene->weight;
-}
-
-void testGeneCreation()
-{
-    uint32_t geneInt = rand() % UINT32_MAX;
-
-    Gene gene = intToGene(geneInt);
-
-    uint32_t newGeneInt = geneToInt(&gene);
-
-    if (geneInt != newGeneInt) {
-        fprintf(stderr, "ERROR: %08X /= %08X\n", geneInt, newGeneInt);
-        exit(1);
-    }
-}
-
-char *geneToString(Gene *gene)
-{
-    char *buffer = calloc(9, sizeof(char));
-    snprintf(buffer, 9, "%08X", geneToInt(gene));
-    return buffer;
-}
-
-char *genomeToString(Genome *genome)
-{
-    size_t size = 9 * genome->count + 1;
-    char *buffer = calloc(size, sizeof(char));
-    for (int i = 0; i < genome->count; i++) {
-        char *geneBuffer = geneToString(&genome->genes[i]);
-        sprintf(&buffer[i * 9], "%s", geneBuffer);
-        if (i + 1 != genome->count) {
-            buffer[i * 9 + 8] = ' ';
-        }
-        free(geneBuffer);
-    }
-    return buffer;
-}
 
 Genome reproduce(Genome *a, Genome *b);
 void organismBuildNeuralNet(Organism *org, Simulation *sim);
-
-Genome mutate(Genome genome, float mutationRate)
-{
-    if ((float)rand() / (float)RAND_MAX >= mutationRate) {
-        return genome;
-    }
-
-    // flip a random bit
-    int idx = rand() % genome.count;
-    int geneInt = geneToInt(&genome.genes[idx]);
-    geneInt = geneInt ^ (1 << (rand() % 32));
-    genome.genes[idx] = intToGene(geneInt);
-    return genome;
-}
 
 Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition)
 {
@@ -106,7 +39,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
             .x = rand() % sim->size.w,
             .y = rand() % sim->size.h,
         },
-        .genome = mutate(reproduce(&a->genome, &b->genome), sim->mutationRate),
+        .genome = mutateGenome(reproduce(&a->genome, &b->genome), sim->mutationRate),
         .alive = true,
         .didCollide = false,
         .energyLevel = 1.0,
@@ -119,14 +52,14 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
         org.pos.y = rand() % sim->size.h;
     }
 
-    organismBuildNeuralNet(&org, sim);
+    org.net = buildNeuralNet(&org.genome, sim);
 
     return org;
 }
 
 void destroyOrganism(Organism *org)
 {
-    organismDestroyNeuralNet(org);
+    destroyNeuralNet(&org->net);
     free(org->genome.genes);
     org->genome.genes = NULL;
     org->genome.count = 0;
@@ -216,112 +149,6 @@ Genome reproduce(Genome *a, Genome *b)
     }
 
     return genome;
-}
-
-Neuron *findNeuronById(Neuron *neurons, size_t n, uint16_t id)
-{
-    for (int i = 0; i < n; i++) {
-        if (neurons[i].id == id) {
-            return &neurons[i];
-        }
-    }
-    return NULL;
-}
-
-void organismBuildNeuralNet(Organism *org, Simulation* sim)
-{
-    Neuron neurons[128] = {0};
-    uint8_t usedNeurons = 0;
-
-    NeuralConnection connections[128] = {0};
-    uint8_t usedConnections = 0;
-
-    for (int i = 0; i < org->genome.count; i++) {
-        Gene *gene = &org->genome.genes[i];
-
-        uint16_t sourceId = gene->sourceId;
-        if (gene->sourceIsInput) {
-            sourceId %= IN_MAX;
-            sourceId |= IN_BASE;
-        } else {
-            sourceId %= sim->maxInternalNeurons;
-            sourceId |= INTERNAL_BASE;
-        }
-
-        uint16_t sinkId = gene->sinkId;
-        if (gene->sinkIsOutput) {
-            sinkId %= OUT_MAX;
-            sinkId |= OUT_BASE;
-        } else {
-            sinkId %= sim->maxInternalNeurons;
-            sinkId |= INTERNAL_BASE;
-        }
-
-        Neuron *source = findNeuronById(neurons, usedNeurons, sourceId);
-        if (source == NULL) {
-            source = &neurons[usedNeurons++];
-            source->id = sourceId;
-            source->type = gene->sourceIsInput ? NEURON_INPUT : NEURON_INTERNAL;
-            source->state = 0.0f;
-            source->inputs = 0;
-            source->outputs = 1;
-            source->inputsVisited = 0;
-            source->outputsVisited = 0;
-        } else {
-            source->outputs++;
-        }
-
-        Neuron *sink = findNeuronById(neurons, usedNeurons, sinkId);
-        if (sink == NULL) {
-            sink = &neurons[usedNeurons++];
-            sink->id = sinkId;
-            sink->type = gene->sinkIsOutput ? NEURON_OUTPUT : NEURON_INTERNAL;
-            sink->state = 0.0f;
-            sink->inputs = 1;
-            sink->outputs = 0;
-            sink->inputsVisited = 0;
-            sink->outputsVisited = 0;
-        } else {
-            sink->inputs++;
-        }
-
-        // printf("Source for neuron %d has id %d\n", i, source->id);
-        // printf("Sink for neuron %d has id %d\n", i, sink->id);
-
-        NeuralConnection *conn = &connections[usedConnections++];
-        conn->sourceId = source->id;
-        conn->sinkId = sink->id;
-        conn->weight =
-            (float)gene->weight * 8.0f / 65536.0f - 4.0f; // between -4.0 and +4.0
-        conn->visited = false;
-    }
-
-    org->net.connectionCount = usedConnections;
-    org->net.connections = calloc(usedConnections, sizeof(NeuralConnection));
-    memcpy(org->net.connections, connections,
-           usedConnections * sizeof(NeuralConnection));
-
-    org->net.neuronCount = usedNeurons;
-    org->net.neurons = calloc(usedNeurons, sizeof(Neuron));
-    memcpy(org->net.neurons, neurons, usedNeurons * sizeof(Neuron));
-
-    // Neuron *source = findNeuronById(org->net.neurons, org->net.neuronCount,
-    // 32768); printf("Neuron 0 has %d inputs and %d outputs\n", source->inputs,
-    // source->outputs); printf("Made net with %d connections between %d
-    // neurons\n", org->net.connectionCount, org->net.neuronCount);
-
-    // Neuron *sink = findNeuronById(org->net.neurons, org->net.neuronCount,
-    // 16384); printf("Net sink is %p, source is %p\n", sink, source);
-}
-
-void organismDestroyNeuralNet(Organism *org)
-{
-    free(org->net.connections);
-    free(org->net.neurons);
-    org->net.connections = NULL;
-    org->net.neurons = NULL;
-    org->net.connectionCount = 0;
-    org->net.neuronCount = 0;
 }
 
 bool inRange(int minInclusive, int x, int maxExclusive)
@@ -626,22 +453,6 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOr
     handleCollisions(org, sim, orgsByPosition, prevOrgsByPosition);
 }
 
-uint32_t rand_uint32(void)
-{
-    return (uint32_t)((uint16_t)(rand()) << 16) | (uint16_t)rand();
-}
-
-Genome makeRandomGenome(uint8_t numGenes)
-{
-    Genome genome = {.count = numGenes, .genes = calloc(numGenes, sizeof(Gene))};
-
-    for (int i = 0; i < numGenes; i++) {
-        genome.genes[i] = intToGene(rand_uint32());
-    }
-
-    return genome;
-}
-
 Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
 {
     Organism org = {
@@ -659,34 +470,9 @@ Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
         org.pos.y = rand() % sim->size.h;
     }
 
-    organismBuildNeuralNet(&org, sim);
+    org.net = buildNeuralNet(&org.genome, sim);
 
     return org;
-}
-
-// make a deep copy of the genome
-Genome copyGenome(Genome* src)
-{
-    Genome dest = *src;
-
-    dest.genes = calloc(src->count, sizeof(Gene));
-    memcpy(dest.genes, src->genes, sizeof(Gene) * src->count);
-
-    return dest;
-}
-
-// make a deep copy of the neural net
-NeuralNet copyNeuralNet(NeuralNet* src)
-{
-    NeuralNet dest = *src;
-
-    dest.connections = calloc(src->connectionCount, sizeof(NeuralConnection));
-    memcpy(dest.connections, src->connections, src->connectionCount * sizeof(NeuralConnection));
-
-    dest.neurons = calloc(src->neuronCount, sizeof(Neuron));
-    memcpy(dest.neurons, src->neurons, src->neuronCount * sizeof(Neuron));
-
-    return dest;
 }
 
 /// Makes a deep copy of the organism; this new Organism will need to be destroyed independently of its original.

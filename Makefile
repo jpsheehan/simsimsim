@@ -15,7 +15,7 @@ debug: $(EXE)
 release: CFLAGS += $(CFLAGS_RELEASE)
 release: clean $(EXE)
 
-$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o
+$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o $(OBJ)/NeuralNet.o $(OBJ)/Genome.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
 
 $(OBJ)/Direction.o: $(SRC)/Direction.c $(INC)/Direction.h $(INC)/Common.h
@@ -33,13 +33,16 @@ $(OBJ)/Visualiser.o: $(SRC)/Visualiser.c $(INC)/Simulator.h $(INC)/Common.h $(IN
 $(OBJ)/Simulator.o: $(SRC)/Simulator.c $(INC)/Simulator.h $(INC)/Common.h $(INC)/Features.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-$(OBJ)/Organism.o: $(SRC)/Organism.c $(INC)/Organism.h $(INC)/Common.h $(INC)/Direction.h
+$(OBJ)/Organism.o: $(SRC)/Organism.c $(INC)/Organism.h $(INC)/Common.h $(INC)/Direction.h $(INC)/Genome.h $(INC)/NeuralNet.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 $(OBJ)/Selectors.o: $(SRC)/Selectors.c $(INC)/Selectors.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-$(OBJ)/Queue.o: $(SRC)/Queue.c $(INC)/Queue.h
+$(OBJ)/NeuralNet.o: $(SRC)/NeuralNet.c $(INC)/NeuralNet.h $(INC)/Common.h
+	$(CC) $< $(CFLAGS) -c -o $@
+
+$(OBJ)/Genome.o: $(SRC)/Genome.c $(INC)/Genome.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:
