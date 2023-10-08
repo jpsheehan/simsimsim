@@ -5,7 +5,9 @@ CC=gcc
 CFLAGS=-Wall -I$(INC)
 CFLAGS_DEBUG=-g
 CFLAGS_RELEASE=-Ofast
-LFLAGS=-lm -lpthread `pkg-config --libs sdl2 SDL2_image SDL2_ttf`
+LFLAGS=-lm -lpthread
+SDL_LFLAGS=`pkg-config --libs   sdl2 SDL2_image SDL2_ttf`
+SDL_CFLAGS=`pkg-config --cflags sdl2 SDL2_image SDL2_ttf`
 SEED=123123
 EXE=./life
 
@@ -16,7 +18,7 @@ release: CFLAGS += $(CFLAGS_RELEASE)
 release: clean $(EXE)
 
 $(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o $(OBJ)/NeuralNet.o $(OBJ)/Genome.o
-	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
+	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS) $(SDL_LFLAGS)
 
 $(OBJ)/Direction.o: $(SRC)/Direction.c $(INC)/Direction.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@ 
@@ -28,7 +30,7 @@ $(OBJ)/Program.o: $(SRC)/Program.c $(INC)/Simulator.h $(INC)/Selectors.h $(INC)/
 	$(CC) $< $(CFLAGS) -c -o $@
 
 $(OBJ)/Visualiser.o: $(SRC)/Visualiser.c $(INC)/Simulator.h $(INC)/Common.h $(INC)/Features.h
-	$(CC) $< $(CFLAGS) -c -o $@ `pkg-config --cflags sdl2 SDL2_image SDL2_ttf`
+	$(CC) $< $(CFLAGS) -c -o $@ $(SDL_CFLAGS)
 
 $(OBJ)/Simulator.o: $(SRC)/Simulator.c $(INC)/Simulator.h $(INC)/Common.h $(INC)/Features.h
 	$(CC) $< $(CFLAGS) -c -o $@
