@@ -24,7 +24,7 @@ $(OBJ)/Direction.o: $(SRC)/Direction.c $(INC)/Direction.h $(INC)/Common.h
 $(OBJ)/Geometry.o: $(SRC)/Geometry.c $(INC)/Geometry.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
-$(OBJ)/Program.o: $(SRC)/Program.c $(INC)/Simulator.h $(INC)/Selectors.h $(INC)/Common.h
+$(OBJ)/Program.o: $(SRC)/Program.c $(INC)/Simulator.h $(INC)/Selectors.h $(INC)/Common.h $(INC)/Features.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 $(OBJ)/Visualiser.o: $(SRC)/Visualiser.c $(INC)/Simulator.h $(INC)/Common.h $(INC)/Features.h
