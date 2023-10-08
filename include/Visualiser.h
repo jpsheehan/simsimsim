@@ -5,16 +5,11 @@
 #include <SDL2/SDL.h>
 #include "Common.h"
 
-void visInit(uint32_t w, uint32_t h);
-void visDestroy(void);
+void visSendGeneration(Organism* orgs, int generation);
+void visSendStep(Organism* orgs, int step);
+void visSendQuit(void);
+void visSendReady(void);
 
-void visDrawBlank(void);
-
-void visSetGeneration(int);
-void visSetStep(int);
-void visSetSeed(int);
-void visDrawStep(Organism* orgs, uint32_t count, bool forceDraw);
-void visSetObstacles(Rect* obstacles, int count);
-bool visGetWantsToQuit(void);
+void runUserInterface(SharedThreadState*);
 
 #endif

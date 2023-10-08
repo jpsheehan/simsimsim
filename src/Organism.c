@@ -663,3 +663,56 @@ Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
 
     return org;
 }
+
+// make a deep copy of the genome
+Genome copyGenome(Genome* src)
+{
+    Genome dest = *src;
+
+    dest.genes = calloc(src->count, sizeof(Gene));
+    memcpy(dest.genes, src->genes, sizeof(Gene) * src->count);
+
+    return dest;
+}
+
+// make a deep copy of the neural net
+NeuralNet copyNeuralNet(NeuralNet* src)
+{
+    NeuralNet dest = *src;
+
+    dest.connections = calloc(src->connectionCount, sizeof(NeuralConnection));
+    memcpy(dest.connections, src->connections, src->connectionCount * sizeof(NeuralConnection));
+
+    dest.neurons = calloc(src->neuronCount, sizeof(Neuron));
+    memcpy(dest.neurons, src->neurons, src->neuronCount * sizeof(Neuron));
+
+    return dest;
+}
+
+/// Makes a deep copy of the organism; this new Organism will need to be destroyed independently of its original.
+Organism copyOrganism(Organism *src)
+{
+    Organism dest = *src;
+
+    dest.genome = copyGenome(&src->genome);
+    dest.net = copyNeuralNet(&src->net);
+
+    return dest;
+}
+
+// copies just the organisms state that can change between steps
+void copyOrganismMutableState(Organism* dest, Organism* src)
+{
+    if (dest == NULL || src == NULL) return;
+
+    dest->alive = src->alive;
+    dest->didCollide = src->didCollide;
+    dest->direction = src->direction;
+    dest->energyLevel = src->energyLevel;
+    dest->pos = src->pos;
+
+    for (int i = 0; i < src->net.neuronCount; i++) {
+        dest->net.neurons[i].prevState = src->net.neurons[i].prevState;
+        dest->net.neurons[i].state = src->net.neurons[i].state;
+    }
+}

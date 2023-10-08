@@ -7,7 +7,7 @@ LFLAGS=-lm -lpthread `pkg-config --libs sdl2 SDL2_image SDL2_ttf`
 SEED=123123
 EXE=./life
 
-$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o
+$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o $(OBJ)/Queue.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS)
 
 $(OBJ)/Direction.o: $(SRC)/Direction.c $(INC)/Direction.h $(INC)/Common.h
@@ -29,6 +29,9 @@ $(OBJ)/Organism.o: $(SRC)/Organism.c $(INC)/Organism.h $(INC)/Common.h $(INC)/Di
 	$(CC) $< $(CFLAGS) -c -o $@
 
 $(OBJ)/Selectors.o: $(SRC)/Selectors.c $(INC)/Selectors.h $(INC)/Common.h
+	$(CC) $< $(CFLAGS) -c -o $@
+
+$(OBJ)/Queue.o: $(SRC)/Queue.c $(INC)/Queue.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:

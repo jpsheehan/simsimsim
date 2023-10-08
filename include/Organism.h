@@ -12,4 +12,8 @@ void findMates(Organism orgs[], int population, Organism **outA,
                Organism **outB);
 void organismRunStep(Organism *org, Organism **organismsByPosition, Organism** prevOrgsByPosition, Simulation* sim,
                      int currentStep);
+
+Organism copyOrganism(Organism *src);
+void copyOrganismMutableState(Organism* dest, Organism* src);
+
 #endif

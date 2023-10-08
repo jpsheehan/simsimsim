@@ -1,4 +1,3 @@
-#include <bits/time.h>
 #include <math.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -7,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <semaphore.h>
 
 #include "Common.h"
 #include "Simulator.h"
@@ -15,27 +15,63 @@
 #include "Organism.h"
 
 static volatile bool interrupted = false;
+static sem_t paused;
+static sem_t framePaused;
+sem_t simulatorReadyLock;
 
 void signalHandler(int sig)
 {
-    interrupted = true;
+    if (sig == SIGINT) {
+        interrupted = true;
+        sem_post(&paused);
+        sem_post(&framePaused);
+        // printf("Interrupt sent\n");
+    }
 }
 
-void runSimulation(Simulation *sim)
+void simSendQuit(void)
 {
-    visInit(sim->size.w, sim->size.h);
+    interrupted = true;
+    sem_post(&paused);
+    sem_post(&framePaused);
+    // printf("Quit sent\n");
+}
+
+void simSendReady(void)
+{
+    sem_post(&simulatorReadyLock);
+}
+
+void simSendPause(void) {
+    sem_wait(&paused);
+}
+void simSendContinue(void) {
+    sem_post(&paused);
+}
+
+void simSendFramePause(void) {
+    sem_wait(&framePaused);
+}
+
+void simSendFrameContinue(void) {
+    sem_post(&framePaused);
+}
+
+void runSimulation(SharedThreadState *sharedThreadState)
+{
+    Simulation *sim = sharedThreadState->sim;
+    sem_init(&paused, 0, 1);
+    sem_init(&framePaused, 0, 0);
+
     signal(SIGINT, &signalHandler);
 
     srand(sim->seed);
     printf("Seed is %d\n", sim->seed);
-    visSetSeed(sim->seed);
 
     Organism *orgs = calloc(sim->population, sizeof(Organism));
     Organism *nextGenOrgs = calloc(sim->population, sizeof(Organism));
     Organism **orgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
     Organism **prevOrgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
-
-    visSetObstacles(sim->obstacles, sim->obstaclesCount);
 
     for (int i = 0; i < sim->population; i++) {
         orgs[i] = makeRandomOrganism(sim, orgsByPosition);
@@ -51,27 +87,48 @@ void runSimulation(Simulation *sim)
     clock_gettime(CLOCK_REALTIME, &ts);
     lastTimeInMicroseconds = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 
+    sem_wait(&simulatorReadyLock);
+    if (interrupted) goto quitOuterLoop;
+    visSendReady();
+
     for (int g = 0; g < sim->maxGenerations; g++) {
-        visSetGeneration(g);
+        visSendGeneration(orgs, g);
+
+        sem_wait(&paused);
+        sem_post(&paused);
+        if (interrupted) goto quitOuterLoop;
+
+        sem_wait(&framePaused);
+        sem_post(&framePaused);
+        if (interrupted) goto quitOuterLoop;
 
         for (int step = 0; step < sim->stepsPerGeneration; step++) {
             memcpy(prevOrgsByPosition, orgsByPosition, sim->size.h * sim->size.w * sizeof(Organism*));
             memset(orgsByPosition, 0, sim->size.h * sim->size.w * sizeof(Organism*));
 
-            visSetStep(step);
-            visDrawStep(orgs, sim->population, false);
+            visSendStep(orgs, step);
+
+            sem_wait(&paused);
+            sem_post(&paused);
+            if (interrupted) goto quitOuterLoop;
+
+            sem_wait(&framePaused);
+            sem_post(&framePaused);
+            if (interrupted) goto quitOuterLoop;
 
             for (int i = 0; i < sim->population; i++) {
                 organismRunStep(&orgs[i], orgsByPosition, prevOrgsByPosition, sim, step);
             }
-
-            if (interrupted || visGetWantsToQuit())
-                break;
+            // int fpVal, pVal;
+            // sem_getvalue(&paused, &pVal);
+            // sem_getvalue(&framePaused, &fpVal);
+            // printf("Finished calculating step %d (paused = %d, framePaused = %d)\n", step, pVal, fpVal);
+            
+            if (interrupted) goto quitOuterLoop;
         }
 
-        if (interrupted || visGetWantsToQuit()) {
-            break;
-        }
+        if (interrupted) goto quitOuterLoop;
+
 
         int survivors = 0;
         int deadBeforeSelection = 0;
@@ -92,7 +149,15 @@ void runSimulation(Simulation *sim)
             }
         }
 
-        visDrawStep(orgs, sim->population, true);
+        visSendStep(orgs, sim->stepsPerGeneration);
+
+        sem_wait(&paused);
+        sem_post(&paused);
+        if (interrupted) goto quitOuterLoop;
+
+        sem_wait(&framePaused);
+        sem_post(&framePaused);
+        if (interrupted) goto quitOuterLoop;
 
         float survivalRate = (float)survivors * 100.0f / sim->population;
 
@@ -138,16 +203,20 @@ void runSimulation(Simulation *sim)
         orgs = nextGenOrgs;
         nextGenOrgs = tmp;
 
-        if (interrupted || survivors <= 1 || visGetWantsToQuit())
-            break;
+        if (interrupted || survivors <= 1)
+            goto quitOuterLoop;
+
     }
+
+quitOuterLoop:
+    visSendQuit();
 
     for (int i = 0; i < sim->population; i++) {
         destroyOrganism(&orgs[i]);
     }
 
-    visDestroy();
-
+    sem_destroy(&paused);
+    sem_destroy(&framePaused);
     free(orgs);
     free(nextGenOrgs);
     free(orgsByPosition);

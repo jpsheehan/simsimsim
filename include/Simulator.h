@@ -3,7 +3,14 @@
 
 #include "Common.h"
 
-void runSimulation(Simulation*);
+void runSimulation(SharedThreadState*);
+void simSendReady(void);
+void simSendQuit(void);
 
+void simSendPause(void);
+void simSendContinue(void);
+
+void simSendFramePause(void);
+void simSendFrameContinue(void);
 
 #endif
