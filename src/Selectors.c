@@ -1,10 +1,5 @@
 #include "Selectors.h"
 
-bool bottomSelector(Organism *org, Simulation *sim)
-{
-    return (org->pos.x < (sim->size.w / 2)) && (org->pos.y < (sim->size.h / 2));
-}
-
 bool centerXSelector(Organism *org, Simulation *sim)
 {
     return ((org->pos.x > (sim->size.w / 3)) && (org->pos.x < (2 * sim->size.w / 3)));
@@ -43,16 +38,26 @@ bool triangleSelector(Organism *org, Simulation *sim)
     return (org->pos.x >= org->pos.y);
 }
 
-bool leftSelector(Organism *org, Simulation *sim)
+bool bottomHalfSelector(Organism *org, Simulation *sim)
+{
+    return (org->pos.y >= (sim->size.h / 2));
+}
+
+bool topHalfSelector(Organism *org, Simulation *sim)
+{
+    return (org->pos.y < (sim->size.h / 2));
+}
+
+bool farLeftSelector(Organism *org, Simulation *sim)
 {
     return org->pos.x < sim->size.w * 0.2;
 }
-bool rightSelector(Organism *org, Simulation *sim)
+bool farRightSelector(Organism *org, Simulation *sim)
 {
     return org->pos.x > sim->size.w * 0.8;
 }
 
-bool leftAndRightSelector(Organism *org, Simulation *sim)
+bool farLeftAndRightSelector(Organism *org, Simulation *sim)
 {
-    return leftSelector(org, sim) || rightSelector(org, sim);
+    return farLeftSelector(org, sim) || farRightSelector(org, sim);
 }

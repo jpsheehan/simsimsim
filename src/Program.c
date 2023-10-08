@@ -24,6 +24,11 @@ extern sem_t simulatorReadyLock;
 extern sem_t visualiserReadyLock;
 #endif
 
+bool selector(Organism* org, Simulation* sim)
+{
+    return bottomHalfSelector(org, sim) && org->energyLevel > 0.7f;
+}
+
 int main(int argc, const char* argv[])
 {
     Simulation sim;
@@ -42,7 +47,7 @@ int main(int argc, const char* argv[])
         (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
     };
 
-    sim.selector = &rightSelector;
+    sim.selector = &selector;
     sim.mutationRate = 0.01;
     sim.obstacles = obstacles;
     sim.obstaclesCount = 0;
@@ -51,11 +56,11 @@ int main(int argc, const char* argv[])
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 2;
-    sim.numberOfGenes = 4;
+    sim.maxInternalNeurons = 4;
+    sim.numberOfGenes = 12;
     sim.population = 1000;
-    sim.stepsPerGeneration = 150;
-    sim.maxGenerations = 20;
+    sim.stepsPerGeneration = 250;
+    sim.maxGenerations = 10000;
 
 #if FEATURE_VISUALISER
     sem_init(&simulatorReadyLock, 0, 0);
