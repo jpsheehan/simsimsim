@@ -263,7 +263,7 @@ void visDrawShell(void)
     Size graphSize = { .w = WIN_W - paddingLeft * 2 - simW * SIM_SCALE, .h = 45 };
     Pos graphPos = (Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * 6 };
 
-    drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration, graphPos, graphSize, black, red, black);
+    drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration - 1, graphPos, graphSize, black, red, black);
 
     graphPos.y += 65;
     drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation + 1, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
