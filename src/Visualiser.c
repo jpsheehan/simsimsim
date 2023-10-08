@@ -1,5 +1,11 @@
 #include "Features.h"
+#include "Common.h"
 
+#if FEATURE_VISUALISER
+
+#include "Organism.h"
+#include "Simulator.h"
+#include "Visualiser.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_keycode.h>
@@ -12,19 +18,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "Common.h"
-#include "Organism.h"
-#include "Simulator.h"
-#include "Visualiser.h"
-
 #define WIN_W 640
 #define WIN_H 480
 #define SIM_SCALE 3
 #define FPS 30
 
 sem_t visualiserReadyLock;
-
-#if FEATURE_VISUALISER
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
@@ -518,22 +517,18 @@ void runUserInterface(Simulation* s)
     visDestroy();
 }
 
+void visSendReady(void)
+{
+    sem_post(&visualiserReadyLock);
+    // printf("visSendReady() #unlocked\n");
+}
+
 #else
 
 void visSendGeneration(Organism *orgs, int generation) {}
 void visSendStep(Organism *orgs, int step) {}
 void visSendQuit(void) {}
-
-void runUserInterface(Simulation *sim)
-{
-    simSendReady();
-    sem_wait(&visualiserReadyLock);
-}
+void visSendReady(void) {}
+void runUserInterface(Simulation *sim) {}
 
 #endif
-
-void visSendReady(void)
-{
-    sem_post(&visualiserReadyLock);
-    printf("visSendReady() #unlocked\n");
-}
