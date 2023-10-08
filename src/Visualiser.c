@@ -3,6 +3,9 @@
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_video.h>
 #include <SDL_ttf.h>
+#if FEATURE_SAVE_IMAGES
+#include <SDL_image.h>
+#endif
 #include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,11 +19,6 @@
 #define WIN_H 480
 #define SIM_SCALE 3
 #define FPS 30
-#define SAVE_IMAGES false
-
-#if SAVE_IMAGES
-#include <SDL_image.h>
-#endif
 
 sem_t visualiserReadyLock;
 
@@ -44,13 +42,14 @@ static Simulation *sim;
 
 static Organism* drawableOrgsRead;
 static volatile Organism* drawableOrgsWrite;
-static volatile bool drawableOrgsChanged;
+static volatile bool drawableOrgsStepChanged;
 static volatile bool drawableOrgsGenerationChanged;
-static volatile bool drawableOrgsPopulated;
-static bool drawableOrgsReadablePopulated;
+static volatile bool drawableOrgsWriteablePopulated;
+static volatile bool drawableOrgsReadablePopulated;
 static sem_t drawableOrgsLock;
 static bool paused = true;
-static bool fastPlay = false;
+static bool fastPlay = true;
+static bool withDelay = true;
 
 void visDrawShell(void);
 
@@ -61,7 +60,7 @@ void visInit(uint32_t w, uint32_t h)
         exit(1);
     }
 
-#if SAVE_IMAGES
+#if FEATURE_SAVE_IMAGES
     if (!IMG_Init(IMG_INIT_JPG)) {
         fprintf(stderr, "Could not init img\n");
         exit(1);
@@ -69,7 +68,7 @@ void visInit(uint32_t w, uint32_t h)
 #endif
 
     if (TTF_Init() == -1) {
-        fprintf(stderr, "Could not ini ttf\n");
+        fprintf(stderr, "Could not init ttf\n");
         exit(1);
     }
 
@@ -242,6 +241,15 @@ void handleEvents()
                     simSendPause();
                 }
                 paused = !paused;
+                printf("Visualiser: Pause %s\n", paused ? "Enabled" : "Disabled");
+                break;
+            case SDLK_d:
+                withDelay = !withDelay;
+                printf("Visualiser: Frame Delay %s\n", withDelay ? "Enabled" : "Disabled");
+                break;
+            case SDLK_f:
+                fastPlay = !fastPlay;
+                printf("Visualiser: Fast Play %s\n", fastPlay ? "Enabled" : "Disabled");
                 break;
             }
             break;
@@ -262,7 +270,7 @@ void visDrawStep(void)
         }
     }
 
-    if (drawableOrgsGenerationChanged || drawableOrgsChanged) {
+    if (drawableOrgsGenerationChanged || drawableOrgsStepChanged) {
 
         if (!drawableOrgsReadablePopulated)
         {
@@ -271,26 +279,17 @@ void visDrawStep(void)
         }
 
         sem_wait(&drawableOrgsLock);
-        // printf("visDrawStep() #locked\n");
 
         for (int i = 0; i < sim->population; i++) {
             drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i]);
         }
         drawableOrgsGenerationChanged = false;
-        drawableOrgsChanged = false;
+        drawableOrgsStepChanged = false;
 
-        // printf("visDrawStep() #unlocked\n");
         sem_post(&drawableOrgsLock);
 
         drawableOrgsReadablePopulated = true;
     }
-
-    // if (drawableOrgsChanged && drawableOrgsReadablePopulated)
-    // {
-    //     for (int i = 0; i < sim->population; i++) {
-    //          drawableOrgsRead
-    //     }
-    // }
 
     if (drawableOrgsReadablePopulated) {
         int survivors = 0;
@@ -308,7 +307,6 @@ void visDrawStep(void)
 
     if (drawableOrgsReadablePopulated)
     {
-        // printf("Beginning render...\n");
         for (int i = 0; i < sim->population; i++) {
             Organism *org = &drawableOrgsRead[i];
 
@@ -347,12 +345,11 @@ void visDrawStep(void)
             };
             SDL_RenderDrawPoints(renderer, fullPoints, 4);
         }
-        // printf("Ending render...\n");
     }
 
     SDL_RenderPresent(renderer);
 
-#if SAVE_IMAGES
+#if FEATURE_SAVE_IMAGES
     if (forceDraw) {
         char filename[128] = { '\0' };
         snprintf(filename, 128, "images/%d_%08d_%03d.jpg", seed, generation, step);
@@ -379,7 +376,7 @@ void visDestroy(void)
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     TTF_Quit();
-#if SAVE_IMAGES
+#if FEATURE_SAVE_IMAGES
     IMG_Quit();
 #endif
     SDL_Quit();
@@ -404,7 +401,7 @@ void visSendGeneration(Organism *orgs, int g)
 
     sem_wait(&drawableOrgsLock);
 
-    if (drawableOrgsPopulated) {
+    if (drawableOrgsWriteablePopulated) {
         for (int i = 0; i < sim->population; i++) {
             destroyOrganism((Organism*)&drawableOrgsWrite[i]);
         }
@@ -414,14 +411,18 @@ void visSendGeneration(Organism *orgs, int g)
         drawableOrgsWrite[i] = copyOrganism(&orgs[i]);
     }
 
-    drawableOrgsChanged = true;
-    drawableOrgsPopulated = true;
+    drawableOrgsStepChanged = true;
     drawableOrgsGenerationChanged = true;
+    drawableOrgsWriteablePopulated = true;
 
     generation = g;
+    step = 0;
+
     if (generation > 0) {
         previousSurvivalRate = survivalRate;
     }
+
+    survivalRate = 100.0f;
 
     sem_post(&drawableOrgsLock);
     
@@ -436,19 +437,19 @@ void visSendQuit(void)
 void visSendStep(Organism* orgs, int s)
 {
     if (interrupted) return;
+    if (fastPlay && (s != sim->stepsPerGeneration - 1)) return;
 
     sem_wait(&drawableOrgsLock);
 
-    if (drawableOrgsPopulated) {
+    if (drawableOrgsWriteablePopulated) {
         for (int i = 0; i < sim->population; i++) {
             // this time only change the data that can change during execution
             copyOrganismMutableState((Organism*)&drawableOrgsWrite[i], &orgs[i]);
         }
+        drawableOrgsStepChanged = true;
+        
+        step = s;
     }
-
-    drawableOrgsChanged = true;
-    
-    step = s;
 
     sem_post(&drawableOrgsLock);
     
@@ -465,9 +466,9 @@ void runUserInterface(SharedThreadState* sharedThreadState)
     drawableOrgsRead = calloc(sim->population, sizeof(Organism));
     sem_init(&drawableOrgsLock, 0, 1);
 
-    drawableOrgsChanged = false;
-    drawableOrgsPopulated = false;
+    drawableOrgsStepChanged = false;
     drawableOrgsGenerationChanged = false;
+    drawableOrgsWriteablePopulated = false;
     drawableOrgsReadablePopulated = false;
 
     visInit(sim->size.w, sim->size.h);
@@ -483,10 +484,13 @@ void runUserInterface(SharedThreadState* sharedThreadState)
     {
         visDrawStep();
 
-        SDL_Delay(1000 / FPS);
+        if (withDelay) {
+            SDL_Delay(1000 / FPS);
+        }
 
-        if (!paused)
+        if (!paused) {
             simSendFrameContinue();
+        }
     }
 
     if (paused) {
@@ -503,11 +507,11 @@ void runUserInterface(SharedThreadState* sharedThreadState)
         drawableOrgsRead = NULL;
     }
 
-    if (drawableOrgsPopulated) {
+    if (drawableOrgsWriteablePopulated) {
         for (int i = 0; i < sim->population; i++) {
             destroyOrganism((Organism*)&drawableOrgsWrite[i]);
         }
-        drawableOrgsPopulated = false;
+        drawableOrgsWriteablePopulated = false;
         free((void*)drawableOrgsWrite);
         drawableOrgsWrite = NULL;
     }

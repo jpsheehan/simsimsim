@@ -9,7 +9,9 @@
 #define IN_BASE 0x8000
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
+
 #define FEATURE_VISUALISER true
+#define FEATURE_SAVE_IMAGES false
 
 typedef enum {
     DIR_N,

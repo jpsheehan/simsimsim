@@ -149,7 +149,7 @@ void runSimulation(SharedThreadState *sharedThreadState)
             }
         }
 
-        visSendStep(orgs, sim->stepsPerGeneration);
+        visSendStep(orgs, sim->stepsPerGeneration - 1);
 
         sem_wait(&paused);
         sem_post(&paused);
