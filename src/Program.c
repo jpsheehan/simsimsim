@@ -52,11 +52,11 @@ int main(int argc, const char* argv[])
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 2;
+    sim.maxInternalNeurons = 1;
     sim.numberOfGenes = 4;
     sim.population = 1000;
     sim.stepsPerGeneration = 150;
-    sim.maxGenerations = 20000;
+    sim.maxGenerations = 1000;
 
 #if FEATURE_VISUALISER
     sem_init(&simulatorReadyLock, 0, 0);

@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "Features.h"
+
 #define IN_BASE 0x8000
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
@@ -143,5 +145,18 @@ typedef struct __simulation_t {
     int numberOfGenes;
     int maxGenerations;
 } Simulation;
+
+#if FEATURE_TRACE
+#define TRACE(s) do {\
+        printf("TRACE: %s\t%s (%s:%d)\n", s, __FUNCTION__, __FILE__, __LINE__);\
+    }\
+    while (0);
+#define TRACE_BEGIN TRACE("Begin");
+#define TRACE_END TRACE("End");
+#else
+#define TRACE(s) 
+#define TRACE_BEGIN
+#define TRACE_END
+#endif
 
 #endif

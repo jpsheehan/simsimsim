@@ -23,9 +23,14 @@
 #define WIN_W 640
 #define WIN_H 480
 #define SIM_SCALE 3
-#define FPS 30
 
 sem_t visualiserReadyLock;
+
+typedef enum {
+    Stepping30FPS,
+    Stepping60FPS,
+    SteppingWithoutDelay,
+} PlaySpeed;
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
@@ -53,11 +58,10 @@ static volatile bool drawableOrgsReadablePopulated;
 static volatile bool disconnected = false;
 static sem_t drawableOrgsLock;
 static bool paused = true;
-// static bool fastPlay = false;
-static bool withDelay = true;
 static float* survivalRatesEachStep;
 static float* survivalRatesEachGeneration;
 static OrganismId selectedOrganism;
+static volatile PlaySpeed playSpeed;
 
 void visDrawShell(void);
 
@@ -229,6 +233,7 @@ void visDrawShell(void)
 
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
     SDL_Color gray = { .r = 128, .g = 128, .b = 128, .a = 255 };
+    SDL_Color lightGray = { .r = 192, .g = 192, .b = 192, .a = 255 };
     SDL_Color red = { .r = 255, .g = 0, .b = 0, .a = 255 };
     SDL_Color blue = { .r = 0, .g = 0, .b = 255, .a = 255 };
 
@@ -238,10 +243,12 @@ void visDrawShell(void)
         drawShellText(0, black, "State: Disconnected");
     } else if (paused) {
         drawShellText(0, black, "State: Paused");
-    } else if (withDelay) {
-        drawShellText(0, black, "State: Running");
-    } else {
-        drawShellText(0, black, "State: Running Fast");
+    } else if (playSpeed == Stepping30FPS) {
+        drawShellText(0, black, "State: Speed I");
+    } else if (playSpeed == Stepping60FPS) {
+        drawShellText(0, black, "State: Speed II");
+    } else if (playSpeed == SteppingWithoutDelay) {
+        drawShellText(0, black, "State: Speed III");
     }
 
     drawShellText(1, black, "Generation: %'d", generation + 1);
@@ -262,13 +269,9 @@ void visDrawShell(void)
 
     drawTextAt(font, (Pos){ .x = paddingLeft, .y = WIN_H - 35 }, black, "[ESC] = Quit");
 
-    if (!disconnected) {
-        drawTextAt(font, (Pos){ .x = paddingLeft + simW * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[SPC] = %s", paused ? "Play" : "Pause");
-
-        if (!paused) {
-            drawTextAt(font, (Pos){ .x = paddingLeft + simW * 2 * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[D] = %s", withDelay ? "Moar Speed" : "Slow Down");
-        }
-    }
+    drawTextAt(font, (Pos){ .x = paddingLeft + simW * 1 * SIM_SCALE / 3, .y = WIN_H - 35 }, disconnected ? lightGray : black, "[SPC] = %s", paused ? "Play" : "Pause");
+    drawTextAt(font, (Pos){ .x = paddingLeft + simW * 2 * SIM_SCALE / 3, .y = WIN_H - 35 }, disconnected || paused || (playSpeed == Stepping30FPS) ? lightGray : black, "[,] = Slower");
+    drawTextAt(font, (Pos){ .x = paddingLeft + simW * 3 * SIM_SCALE / 3, .y = WIN_H - 35 }, disconnected || paused || (playSpeed == SteppingWithoutDelay) ? lightGray : black, "[.] = Faster");
 
     Size graphSize = { .w = WIN_W - paddingLeft * 2 - simW * SIM_SCALE, .h = 45 };
     Pos graphPos = (Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * 6 };
@@ -319,12 +322,13 @@ void handleEvents()
                 paused = !paused;
                 // printf("Visualiser: Pause %s\n", paused ? "Enabled" : "Disabled");
                 break;
-            case SDLK_d:
-                if (disconnected) break;
-                if (!paused) {
-                    withDelay = !withDelay;
-                    // printf("Visualiser: Frame Delay %s\n", withDelay ? "Enabled" : "Disabled");
-                }
+            case SDLK_COMMA:
+                if (disconnected || paused || (playSpeed == Stepping30FPS)) break;
+                playSpeed--;
+                break;
+            case SDLK_PERIOD:
+                if (disconnected || paused || (playSpeed == SteppingWithoutDelay)) break;
+                playSpeed++;
                 break;
             }
             break;
@@ -513,7 +517,12 @@ float calculateSurvivalRate(Organism* orgs)
 
 void visSendGeneration(Organism *orgs, int g)
 {
-    if (interrupted) return;
+    TRACE_BEGIN;
+
+    if (interrupted) {
+        TRACE_END;
+        return;
+    }
 
     sem_wait(&drawableOrgsLock);
 
@@ -527,9 +536,12 @@ void visSendGeneration(Organism *orgs, int g)
         drawableOrgsWrite[i] = copyOrganism(&orgs[i]);
     }
 
+    sem_post(&drawableOrgsLock);
+
+    drawableOrgsWriteablePopulated = true;
+
     drawableOrgsStepChanged = true;
     drawableOrgsGenerationChanged = true;
-    drawableOrgsWriteablePopulated = true;
 
     generation = g;
     step = 0;
@@ -541,21 +553,28 @@ void visSendGeneration(Organism *orgs, int g)
 
     survivalRate = 100.0f;
 
-    sem_post(&drawableOrgsLock);
-
-    if (withDelay)
+    if (playSpeed != SteppingWithoutDelay) {
         simSendFramePause();
+    }
+
+    TRACE_END;
 }
 
 void visSendQuit(void)
 {
+    TRACE_BEGIN;
     interrupted = true;
+    TRACE_END;
 }
 
 void visSendStep(Organism* orgs, int s)
 {
-    if (interrupted) return;
-    // if (fastPlay && (s != sim->stepsPerGeneration - 1)) return;
+    TRACE_BEGIN;
+
+    if (interrupted) {
+        TRACE_END;
+        return;
+    }
 
     sem_wait(&drawableOrgsLock);
 
@@ -575,8 +594,11 @@ void visSendStep(Organism* orgs, int s)
 
     sem_post(&drawableOrgsLock);
 
-    if (withDelay)
+    if (playSpeed != SteppingWithoutDelay) {
         simSendFramePause();
+    }
+
+    TRACE_END;
 }
 
 void runUserInterface(Simulation* s)
@@ -591,6 +613,7 @@ void runUserInterface(Simulation* s)
     drawableOrgsGenerationChanged = false;
     drawableOrgsWriteablePopulated = false;
     drawableOrgsReadablePopulated = false;
+    playSpeed = Stepping30FPS;
 
     visInit(sim->size.w, sim->size.h);
 
@@ -604,11 +627,14 @@ void runUserInterface(Simulation* s)
     while (!interrupted) {
         visDrawStep();
 
-        if (withDelay) {
-            SDL_Delay(1000 / FPS);
+        if (playSpeed == Stepping30FPS) {
+            SDL_Delay(1000 / 30);
+        }
+        else if (playSpeed == Stepping60FPS) {
+            SDL_Delay(1000 / 60);
         }
 
-        if (!paused && withDelay) {
+        if (!paused && playSpeed != SteppingWithoutDelay) {
             simSendFrameContinue();
         }
     }
