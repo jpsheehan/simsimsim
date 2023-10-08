@@ -3,24 +3,27 @@
 
 #include "Common.h"
 
-bool centerXSelector(Organism *org, Simulation *sim);
-bool centerYSelector(Organism *org, Simulation *sim);
+extern SelectionCriteria topHalfSelector;
+extern SelectionCriteria bottomHalfSelector;
+extern SelectionCriteria leftHalfSelector;
+extern SelectionCriteria rightHalfSelector;
 
-bool collidedSelector(Organism *org, Simulation *sim);
+extern SelectionCriteria centerSelector;
+extern SelectionCriteria centerXSelector;
+extern SelectionCriteria centerYSelector;
+extern SelectionCriteria circleCenterSelector;
 
-bool hasEnoughEnergySelector(Organism *org, Simulation *sim);
+extern SelectionCriteria farLeftSelector;
+extern SelectionCriteria farRightSelector;
+extern SelectionCriteria farTopSelector;
+extern SelectionCriteria farBottomSelector;
 
-bool centerSelector(Organism *org, Simulation *sim);
-bool circleCenterSelector(Organism* org, Simulation *sim);
+extern SelectionCriteria farTopOrBottomSelector;
+extern SelectionCriteria farLeftOrRightSelector;
 
-bool triangleSelector(Organism *org, Simulation *sim);
+// bool farLeftSelector(Organism *org, Simulation *sim);
+// bool farRightSelector(Organism *org, Simulation *sim);
 
-bool topHalfSelector(Organism *org, Simulation *sim);
-bool bottomHalfSelector(Organism *org, Simulation *sim);
-
-bool farLeftSelector(Organism *org, Simulation *sim);
-bool farRightSelector(Organism *org, Simulation *sim);
-
-bool farLeftAndRightSelector(Organism *org, Simulation *sim);
+// bool farLeftAndRightSelector(Organism *org, Simulation *sim);
 
 #endif

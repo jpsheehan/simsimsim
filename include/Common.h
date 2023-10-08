@@ -116,10 +116,17 @@ typedef struct {
     Direction direction;
 } Organism;
 
+struct __simulation_t;
+
+typedef struct {
+    bool (*fn)(Organism*, struct __simulation_t*);
+    const char* name;
+} SelectionCriteria;
+
 typedef struct __simulation_t {
     Size size;
     int seed;
-    bool (*selector)(Organism*, struct __simulation_t*);
+    SelectionCriteria selector;
     Rect* obstacles;
     size_t obstaclesCount;
     float mutationRate;

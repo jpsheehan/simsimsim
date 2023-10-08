@@ -24,11 +24,6 @@ extern sem_t simulatorReadyLock;
 extern sem_t visualiserReadyLock;
 #endif
 
-bool selector(Organism* org, Simulation* sim)
-{
-    return bottomHalfSelector(org, sim) && org->energyLevel > 0.7f;
-}
-
 int main(int argc, const char* argv[])
 {
     Simulation sim;
@@ -47,7 +42,7 @@ int main(int argc, const char* argv[])
         (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
     };
 
-    sim.selector = &selector;
+    sim.selector = topHalfSelector;
     sim.mutationRate = 0.01;
     sim.obstacles = obstacles;
     sim.obstaclesCount = 0;

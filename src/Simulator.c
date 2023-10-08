@@ -48,7 +48,7 @@ void simSendReady(void)
 {
 #if FEATURE_VISUALISER
     sem_post(&simulatorReadyLock);
-    printf("simSendReady() #unlocked\n");
+    // printf("simSendReady() #unlocked\n");
 #endif
 }
 
@@ -171,7 +171,7 @@ void runSimulation(Simulation *s)
                 continue;
             }
 
-            if (sim->selector(org, sim)) {
+            if (sim->selector.fn(org, sim)) {
                 survivors++;
             } else {
                 deadAfterSelection++;

@@ -108,10 +108,36 @@ void visInit(uint32_t w, uint32_t h)
     SDL_RenderPresent(renderer);
 }
 
+void drawShellText(int row, SDL_Color color, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    char buffer[128] = { 0 };
+    SDL_Rect sourceRect, destRect;
+    SDL_Surface* textSurface;
+    SDL_Texture* textTexture;
+
+    vsnprintf(buffer, 128, format, args);
+    textSurface = TTF_RenderText_Blended(font, buffer, color);
+    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+    sourceRect = (SDL_Rect) {
+        .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
+    };
+    destRect = (SDL_Rect) {
+        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * row, .w = textSurface->w, .h = textSurface->h
+    };
+
+    SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+
+    va_end(args);
+}
+
 void visDrawShell(void)
 {
-    // printf("Begin drawing shell\n");
-
     // clear the window
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
@@ -125,81 +151,26 @@ void visDrawShell(void)
         .h = simH * SIM_SCALE + 2
     });
 
-    // draw the text
-    char buffer[128] = { 0 };
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
-    SDL_Rect sourceRect, destRect;
-    SDL_Surface* textSurface;
-    SDL_Texture* textTexture;
+    SDL_Color gray = { .r = 128, .g = 128, .b = 128, .a = 255 };
 
-    // Generation
-    snprintf(buffer, 128, "Generation: %d", generation + 1);
-    textSurface = TTF_RenderText_Blended(font, buffer, black);
-    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    drawShellText(0, black, "Generation: %d", generation + 1);
+    drawShellText(1, black, "Step: %03d", step + 1);
+    drawShellText(2, black, "Survival Rate: %.2f%%", survivalRate);
 
-    sourceRect = (SDL_Rect) {
-        .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
-    };
-    destRect = (SDL_Rect) {
-        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop, .w = textSurface->w, .h = textSurface->h
-    };
-
-    SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
-    SDL_FreeSurface(textSurface);
-    SDL_DestroyTexture(textTexture);
-
-    // Step
-    // printf("Finished renderering step: %d\n", step);
-    snprintf(buffer, 128, "Step: %03d", step + 1);
-    textSurface = TTF_RenderText_Blended(font, buffer, black);
-    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-
-    sourceRect = (SDL_Rect) {
-        .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
-    };
-    destRect = (SDL_Rect) {
-        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20, .w = textSurface->w, .h = textSurface->h
-    };
-
-    SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
-    SDL_FreeSurface(textSurface);
-    SDL_DestroyTexture(textTexture);
-
-    // Survival Rate
-    snprintf(buffer, 128, "Survival Rate: %.2f%%", survivalRate);
-    textSurface = TTF_RenderText_Blended(font, buffer, black);
-    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-
-    sourceRect = (SDL_Rect) {
-        .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
-    };
-    destRect = (SDL_Rect) {
-        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 40, .w = textSurface->w, .h = textSurface->h
-    };
-
-    SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
-    SDL_FreeSurface(textSurface);
-    SDL_DestroyTexture(textTexture);
-
-    // Previous Gen. Survival Rate
     if (generation > 0) {
-        snprintf(buffer, 128, "Prev. Rate: %.2f%%", previousSurvivalRate);
-        textSurface = TTF_RenderText_Blended(font, buffer, black);
-        textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-
-        sourceRect = (SDL_Rect) {
-            .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
-        };
-        destRect = (SDL_Rect) {
-            .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 60, .w = textSurface->w, .h = textSurface->h
-        };
-
-        SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
-        SDL_FreeSurface(textSurface);
-        SDL_DestroyTexture(textTexture);
+        drawShellText(3, black, "Prev. Rate: %.2f%%", previousSurvivalRate);
     }
 
-    // draw obstacles
+    drawShellText(12, gray, "Selection: %s", sim->selector.name);
+    drawShellText(13, gray, "Seed: %d", sim->seed);
+    drawShellText(14, gray, "Int. Neurons: %d", sim->maxInternalNeurons);
+    drawShellText(15, gray, "No. of Genes: %d", sim->numberOfGenes);
+    drawShellText(16, gray, "Mut. Rate: %.2f%%", sim->mutationRate * 100.0f);
+    drawShellText(17, gray, "Gen. Pop.: %d", sim->population);
+    drawShellText(18, gray, "Gen. Count: %d", sim->maxGenerations);
+
+    // obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++) {
         Rect *r = &OBSTACLES[i];
         SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
@@ -211,7 +182,6 @@ void visDrawShell(void)
             .h = r->h * SIM_SCALE
         });
     }
-    // printf("End drawing shell\n");
 }
 
 void handleEvents()
@@ -247,10 +217,6 @@ void handleEvents()
                 withDelay = !withDelay;
                 printf("Visualiser: Frame Delay %s\n", withDelay ? "Enabled" : "Disabled");
                 break;
-                // case SDLK_f:
-                //     fastPlay = !fastPlay;
-                //     printf("Visualiser: Fast Play %s\n", fastPlay ? "Enabled" : "Disabled");
-                //     break;
             }
             break;
         }
