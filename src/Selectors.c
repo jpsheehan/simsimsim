@@ -79,12 +79,34 @@ bool farLeftSelectorFn(Organism *org, Simulation *sim)
 {
     return org->pos.x < sim->size.w * 0.2;
 }
+
+const char farLeftSelectorName[] = "Left 20%";
+
+SelectionCriteria farLeftSelector = {
+    .fn = farLeftSelectorFn,
+    .name = farLeftSelectorName,
+};
+
 bool farRightSelectorFn(Organism *org, Simulation *sim)
 {
     return org->pos.x > sim->size.w * 0.8;
 }
 
-bool farLeftAndRightSelectorFn(Organism *org, Simulation *sim)
+const char farRightSelectorName[] = "Right 20%";
+
+SelectionCriteria farRightSelector = {
+    .fn = farRightSelectorFn,
+    .name = farRightSelectorName,
+};
+
+bool farLeftOrRightSelectorFn(Organism *org, Simulation *sim)
 {
     return farLeftSelectorFn(org, sim) || farRightSelectorFn(org, sim);
 }
+
+const char farLeftOrRightSelectorName[] = "L/R Edges";
+
+SelectionCriteria farLeftOrRightSelector = {
+    .fn = farLeftOrRightSelectorFn,
+    .name = farLeftOrRightSelectorName,
+};

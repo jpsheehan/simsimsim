@@ -43,7 +43,7 @@ int main(int argc, const char* argv[])
         (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
     };
 
-    sim.selector = topHalfSelector;
+    sim.selector = circleCenterSelector;
     sim.mutationRate = 0.01;
     sim.obstacles = obstacles;
     sim.obstaclesCount = 0;
@@ -52,8 +52,8 @@ int main(int argc, const char* argv[])
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 4;
-    sim.numberOfGenes = 12;
+    sim.maxInternalNeurons = 3;
+    sim.numberOfGenes = 6;
     sim.population = 1000;
     sim.stepsPerGeneration = 150;
     sim.maxGenerations = 20;
