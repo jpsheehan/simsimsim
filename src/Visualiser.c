@@ -108,11 +108,8 @@ void visInit(uint32_t w, uint32_t h)
     SDL_RenderPresent(renderer);
 }
 
-void drawShellText(int row, SDL_Color color, const char* format, ...)
+void drawTextF(Pos pos, SDL_Color color, const char* format, va_list args)
 {
-    va_list args;
-    va_start(args, format);
-
     char buffer[128] = { 0 };
     SDL_Rect sourceRect, destRect;
     SDL_Surface* textSurface;
@@ -126,13 +123,27 @@ void drawShellText(int row, SDL_Color color, const char* format, ...)
         .x = 0, .y = 0, .w = textSurface->w, .h = textSurface->h
     };
     destRect = (SDL_Rect) {
-        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * row, .w = textSurface->w, .h = textSurface->h
+        .x = pos.x, pos.y, .w = textSurface->w, .h = textSurface->h
     };
 
     SDL_RenderCopy(renderer, textTexture, &sourceRect, &destRect);
     SDL_FreeSurface(textSurface);
     SDL_DestroyTexture(textTexture);
+}
 
+void drawTextAt(Pos pos, SDL_Color color, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    drawTextF(pos, color, format, args);
+    va_end(args);
+}
+
+void drawShellText(int row, SDL_Color color, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    drawTextF((Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * row }, color, format, args);
     va_end(args);
 }
 
@@ -169,6 +180,8 @@ void visDrawShell(void)
     drawShellText(16, gray, "Mut. Rate: %.2f%%", sim->mutationRate * 100.0f);
     drawShellText(17, gray, "Gen. Pop.: %d", sim->population);
     drawShellText(18, gray, "Gen. Count: %d", sim->maxGenerations);
+
+    drawTextAt((Pos){ .x = paddingLeft, .y = WIN_H - 35 }, black, "Controls: [ESC] = Quit    [SPC] = Pause    [D] = Toggle Frame Delay");
 
     // obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++) {
