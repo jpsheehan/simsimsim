@@ -55,8 +55,8 @@ int main(int argc, const char* argv[])
     sim.maxInternalNeurons = 4;
     sim.numberOfGenes = 12;
     sim.population = 1000;
-    sim.stepsPerGeneration = 250;
-    sim.maxGenerations = 10000;
+    sim.stepsPerGeneration = 150;
+    sim.maxGenerations = 20;
 
 #if FEATURE_VISUALISER
     sem_init(&simulatorReadyLock, 0, 0);

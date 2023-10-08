@@ -29,6 +29,7 @@ static SDL_Window *window;
 static SDL_Renderer *renderer;
 static TTF_Font* font;
 static TTF_Font* titleFont;
+static TTF_Font* smallFont;
 static uint32_t generation;
 static uint32_t step;
 static int paddingLeft, paddingTop, simW, simH;
@@ -47,10 +48,13 @@ static volatile bool drawableOrgsStepChanged;
 static volatile bool drawableOrgsGenerationChanged;
 static volatile bool drawableOrgsWriteablePopulated;
 static volatile bool drawableOrgsReadablePopulated;
+static volatile bool disconnected = false;
 static sem_t drawableOrgsLock;
 static bool paused = true;
 // static bool fastPlay = false;
 static bool withDelay = true;
+static float* survivalRatesEachStep;
+static float* survivalRatesEachGeneration;
 
 void visDrawShell(void);
 
@@ -99,6 +103,12 @@ void visInit(uint32_t w, uint32_t h)
         exit(1);
     }
 
+    smallFont = TTF_OpenFont("resources/SourceSansPro-Regular.ttf", 10);
+    if (smallFont == NULL) {
+        fprintf(stderr, "Could not open font\n");
+        exit(1);
+    }
+
     simW = w;
     simH = h;
     paddingTop = (WIN_H - (SIM_SCALE * h)) / 2;
@@ -109,6 +119,9 @@ void visInit(uint32_t w, uint32_t h)
     int width, height;
     SDL_QueryTexture(fileTexture, NULL, NULL, &width, &height);
     fileSurface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
+
+    survivalRatesEachStep = calloc(sim->stepsPerGeneration, sizeof(float));
+    survivalRatesEachGeneration = calloc(sim->maxGenerations, sizeof(float));
 
     visDrawShell();
     SDL_RenderPresent(renderer);
@@ -153,6 +166,42 @@ void drawShellText(int row, SDL_Color color, const char* format, ...)
     va_end(args);
 }
 
+// draws a line graph of points where each point should be normalised between 0 and 1
+void drawGraph(const char* title, float* xs, size_t n, size_t maxN, Pos pos, Size size, SDL_Color borderColor, SDL_Color lineColor, SDL_Color titleColor)
+{
+    SDL_Rect border = { .x = pos.x, .y = pos.y, .w = size.w, .h = size.h };
+
+    // draw outline
+    SDL_SetRenderDrawColor(renderer, borderColor.r, borderColor.g, borderColor.b, borderColor.a);
+    SDL_RenderDrawRect(renderer, &border);
+
+    if (n >= 2) 
+    {
+        SDL_Point *points = calloc(n, sizeof(SDL_Point));
+
+        for (int i = 0; i < n; i++) {
+            points[i] = (SDL_Point){ .x = border.x + 1 + (int)((border.w - 2) * (float)i / (float)maxN), .y = border.y + 1 + border.h - 2 - (int)((float)(border.h - 2) * xs[i])};
+        }
+
+        SDL_SetRenderDrawColor(renderer, lineColor.r, lineColor.g, lineColor.b, lineColor.a);
+        SDL_RenderDrawLines(renderer, points, n);
+
+        free(points);
+        points = NULL;
+    }
+
+    if (title == NULL) return;
+
+    pos.x += 2;
+    pos.y -= 16;
+    drawTextAt(smallFont, pos, titleColor, "%s", title);
+}
+
+void visSendDisconnected(void)
+{
+    disconnected = true;
+}
+
 void visDrawShell(void)
 {
     // clear the window
@@ -170,10 +219,14 @@ void visDrawShell(void)
 
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
     SDL_Color gray = { .r = 128, .g = 128, .b = 128, .a = 255 };
+    SDL_Color red = { .r = 255, .g = 0, .b = 0, .a = 255 };
+    SDL_Color blue = { .r = 0, .g = 0, .b = 255, .a = 255 };
 
     drawTextAt(titleFont, (Pos){ .x = paddingLeft, .y = 10 }, black, "Simulation");
 
-    if (paused) {
+    if (disconnected) {
+        drawShellText(0, black, "State: Disconnected");
+    } else if (paused) {
         drawShellText(0, black, "State: Paused");
     } else if (withDelay) {
         drawShellText(0, black, "State: Running");
@@ -198,11 +251,22 @@ void visDrawShell(void)
     drawShellText(18, gray, "Gen. Count: %'d", sim->maxGenerations);
 
     drawTextAt(font, (Pos){ .x = paddingLeft, .y = WIN_H - 35 }, black, "[ESC] = Quit");
-    drawTextAt(font, (Pos){ .x = paddingLeft + simW * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[SPC] = %s", paused ? "Play" : "Pause");
 
-    if (!paused) {
-        drawTextAt(font, (Pos){ .x = paddingLeft + simW * 2 * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[D] = %s", withDelay ? "Moar Speed" : "Slow Down");
+    if (!disconnected) {
+        drawTextAt(font, (Pos){ .x = paddingLeft + simW * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[SPC] = %s", paused ? "Play" : "Pause");
+
+        if (!paused) {
+            drawTextAt(font, (Pos){ .x = paddingLeft + simW * 2 * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[D] = %s", withDelay ? "Moar Speed" : "Slow Down");
+        }
     }
+
+    Size graphSize = { .w = WIN_W - paddingLeft * 2 - simW * SIM_SCALE, .h = 45 };
+    Pos graphPos = (Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * 6 };
+
+    drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration, graphPos, graphSize, black, red, black);
+
+    graphPos.y += 65;
+    drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation + 1, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
 
     // obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++) {
@@ -235,10 +299,8 @@ void handleEvents()
             case SDLK_ESCAPE:
                 interrupted = true;
                 break;
-            case SDLK_q:
-                interrupted = true;
-                break;
             case SDLK_SPACE:
+                if (disconnected) break;
                 if (paused) {
                     simSendContinue();
                 } else {
@@ -248,6 +310,7 @@ void handleEvents()
                 // printf("Visualiser: Pause %s\n", paused ? "Enabled" : "Disabled");
                 break;
             case SDLK_d:
+                if (disconnected) break;
                 if (!paused) {
                     withDelay = !withDelay;
                     // printf("Visualiser: Frame Delay %s\n", withDelay ? "Enabled" : "Disabled");
@@ -349,6 +412,12 @@ void visDrawStep(void)
 
 void visDestroy(void)
 {
+    free(survivalRatesEachStep);
+    survivalRatesEachStep = NULL;
+
+    free(survivalRatesEachGeneration);
+    survivalRatesEachGeneration = NULL;
+
     SDL_FreeSurface(fileSurface);
     fileSurface = NULL;
 
@@ -357,6 +426,12 @@ void visDestroy(void)
 
     TTF_CloseFont(font);
     font = NULL;
+
+    TTF_CloseFont(titleFont);
+    titleFont = NULL;
+
+    TTF_CloseFont(smallFont);
+    smallFont = NULL;
 
     SDL_DestroyRenderer(renderer);
     renderer = NULL;
@@ -452,6 +527,8 @@ void visSendStep(Organism* orgs, int s)
         step = s;
 
         survivalRate = calculateSurvivalRate((Organism*)drawableOrgsWrite);
+
+        survivalRatesEachStep[s] = survivalRatesEachGeneration[generation] = survivalRate / 100.0f;
     }
 
     sem_post(&drawableOrgsLock);

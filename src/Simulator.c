@@ -54,12 +54,14 @@ void simSendReady(void)
 
 void simSendPause(void)
 {
+    if (interrupted) return;
 #if FEATURE_VISUALISER
     sem_wait(&paused);
 #endif
 }
 void simSendContinue(void)
 {
+    if (interrupted) return;
 #if FEATURE_VISUALISER
     sem_post(&paused);
 #endif
@@ -67,6 +69,7 @@ void simSendContinue(void)
 
 void simSendFramePause(void)
 {
+    if (interrupted) return;
 #if FEATURE_VISUALISER
     sem_wait(&framePaused);
 #endif
@@ -74,6 +77,7 @@ void simSendFramePause(void)
 
 void simSendFrameContinue(void)
 {
+    if (interrupted) return;
 #if FEATURE_VISUALISER
     sem_post(&framePaused);
 #endif
@@ -243,7 +247,11 @@ void runSimulation(Simulation *s)
     }
 
 quitOuterLoop:
-    visSendQuit();
+    if (interrupted) {
+        visSendQuit();
+    } else {
+        visSendDisconnected();
+    }
 
     for (int i = 0; i < sim->population; i++) {
         destroyOrganism(&orgs[i]);

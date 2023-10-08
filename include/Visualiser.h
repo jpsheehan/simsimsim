@@ -9,6 +9,7 @@ void visSendGeneration(Organism* orgs, int generation);
 void visSendStep(Organism* orgs, int step);
 void visSendQuit(void);
 void visSendReady(void);
+void visSendDisconnected(void);
 
 void runUserInterface(Simulation*);
 
