@@ -1,10 +1,9 @@
-#include "Features.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <semaphore.h>
-#include <pthread.h>
+#include <locale.h>
+
+#include "Features.h"
 
 #if FEATURE_VISUALISER
 #include <pthread.h>
@@ -26,6 +25,8 @@ extern sem_t visualiserReadyLock;
 
 int main(int argc, const char* argv[])
 {
+    setlocale(LC_NUMERIC, "");
+
     Simulation sim;
 
     if (argc == 2) {

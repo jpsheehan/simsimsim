@@ -28,6 +28,7 @@ sem_t visualiserReadyLock;
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static TTF_Font* font;
+static TTF_Font* titleFont;
 static uint32_t generation;
 static uint32_t step;
 static int paddingLeft, paddingTop, simW, simH;
@@ -92,14 +93,19 @@ void visInit(uint32_t w, uint32_t h)
         exit(1);
     }
 
+    titleFont = TTF_OpenFont("resources/SourceSansPro-Regular.ttf", 24);
+    if (titleFont == NULL) {
+        fprintf(stderr, "Could not open font\n");
+        exit(1);
+    }
+
     simW = w;
     simH = h;
     paddingTop = (WIN_H - (SIM_SCALE * h)) / 2;
-    paddingLeft = paddingTop;// (WIN_W - (SIM_SCALE * w)) / 2;
+    paddingLeft = paddingTop;
     survivalRate = 100.0f;
 
     fileTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_TARGET, WIN_W, WIN_H);
-    // printf("Created fileTexture\n");
     int width, height;
     SDL_QueryTexture(fileTexture, NULL, NULL, &width, &height);
     fileSurface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
@@ -108,7 +114,7 @@ void visInit(uint32_t w, uint32_t h)
     SDL_RenderPresent(renderer);
 }
 
-void drawTextF(Pos pos, SDL_Color color, const char* format, va_list args)
+void drawTextF(TTF_Font* font, Pos pos, SDL_Color color, const char* format, va_list args)
 {
     char buffer[128] = { 0 };
     SDL_Rect sourceRect, destRect;
@@ -131,11 +137,11 @@ void drawTextF(Pos pos, SDL_Color color, const char* format, va_list args)
     SDL_DestroyTexture(textTexture);
 }
 
-void drawTextAt(Pos pos, SDL_Color color, const char* format, ...)
+void drawTextAt(TTF_Font* font, Pos pos, SDL_Color color, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
-    drawTextF(pos, color, format, args);
+    drawTextF(font, pos, color, format, args);
     va_end(args);
 }
 
@@ -143,7 +149,7 @@ void drawShellText(int row, SDL_Color color, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
-    drawTextF((Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * row }, color, format, args);
+    drawTextF(font, (Pos){ .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * row }, color, format, args);
     va_end(args);
 }
 
@@ -165,23 +171,38 @@ void visDrawShell(void)
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
     SDL_Color gray = { .r = 128, .g = 128, .b = 128, .a = 255 };
 
-    drawShellText(0, black, "Generation: %d", generation + 1);
-    drawShellText(1, black, "Step: %03d", step + 1);
-    drawShellText(2, black, "Survival Rate: %.2f%%", survivalRate);
+    drawTextAt(titleFont, (Pos){ .x = paddingLeft, .y = 10 }, black, "Simulation");
+
+    if (paused) {
+        drawShellText(0, black, "State: Paused");
+    } else if (withDelay) {
+        drawShellText(0, black, "State: Running");
+    } else {
+        drawShellText(0, black, "State: Running Fast");
+    }
+
+    drawShellText(1, black, "Generation: %'d", generation + 1);
+    drawShellText(2, black, "Step: %03d", step + 1);
+    drawShellText(3, black, "Survival Rate: %.2f%%", survivalRate);
 
     if (generation > 0) {
-        drawShellText(3, black, "Prev. Rate: %.2f%%", previousSurvivalRate);
+        drawShellText(4, black, "Prev. Rate: %.2f%%", previousSurvivalRate);
     }
 
     drawShellText(12, gray, "Selection: %s", sim->selector.name);
-    drawShellText(13, gray, "Seed: %d", sim->seed);
+    drawShellText(13, gray, "Seed: %'d", sim->seed);
     drawShellText(14, gray, "Int. Neurons: %d", sim->maxInternalNeurons);
     drawShellText(15, gray, "No. of Genes: %d", sim->numberOfGenes);
     drawShellText(16, gray, "Mut. Rate: %.2f%%", sim->mutationRate * 100.0f);
-    drawShellText(17, gray, "Gen. Pop.: %d", sim->population);
-    drawShellText(18, gray, "Gen. Count: %d", sim->maxGenerations);
+    drawShellText(17, gray, "Gen. Pop.: %'d", sim->population);
+    drawShellText(18, gray, "Gen. Count: %'d", sim->maxGenerations);
 
-    drawTextAt((Pos){ .x = paddingLeft, .y = WIN_H - 35 }, black, "Controls: [ESC] = Quit    [SPC] = Pause    [D] = Toggle Frame Delay");
+    drawTextAt(font, (Pos){ .x = paddingLeft, .y = WIN_H - 35 }, black, "[ESC] = Quit");
+    drawTextAt(font, (Pos){ .x = paddingLeft + simW * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[SPC] = %s", paused ? "Play" : "Pause");
+
+    if (!paused) {
+        drawTextAt(font, (Pos){ .x = paddingLeft + simW * 2 * SIM_SCALE / 3, .y = WIN_H - 35 }, black, "[D] = %s", withDelay ? "Moar Speed" : "Slow Down");
+    }
 
     // obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++) {
@@ -224,11 +245,13 @@ void handleEvents()
                     simSendPause();
                 }
                 paused = !paused;
-                printf("Visualiser: Pause %s\n", paused ? "Enabled" : "Disabled");
+                // printf("Visualiser: Pause %s\n", paused ? "Enabled" : "Disabled");
                 break;
             case SDLK_d:
-                withDelay = !withDelay;
-                printf("Visualiser: Frame Delay %s\n", withDelay ? "Enabled" : "Disabled");
+                if (!paused) {
+                    withDelay = !withDelay;
+                    // printf("Visualiser: Frame Delay %s\n", withDelay ? "Enabled" : "Disabled");
+                }
                 break;
             }
             break;
