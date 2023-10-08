@@ -214,7 +214,7 @@ void visDrawShell(void)
 
     // draw outline for the play field
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderDrawRect(renderer, &(SDL_Rect) {
+    SDL_RenderFillRect(renderer, &(SDL_Rect) {
         .x = paddingLeft - 1,
         .y = paddingTop - 1,
         .w = simW * SIM_SCALE + 2,
@@ -328,27 +328,30 @@ void handleEvents()
 
 SDL_Color getOrganismBaseColor(Organism* org)
 {
+    // alive and mutated = bright green
     if (org->alive && org->mutated) {
         return (SDL_Color){
-            .r = 0, .g = 128, .b = 0, .a = 255
+            .r = 0, .g = 255, .b = 0, .a = 255
         };
     }
 
+    // alive and not-mutated = white
     if (org->alive && !org->mutated) {
         return (SDL_Color){
-            .r = 255, .g = 0, .b = 0, .a = 255
+            .r = 255, .g = 255, .b = 255, .a = 255
         };
     }
 
+    // not-alive and mutated = gray
     if (!org->alive && org->mutated) {
         return (SDL_Color){
-            .r = 0, .g = 64, .b = 0, .a = 255
+            .r = 128, .g = 128, .b = 128, .a = 255
         };
     }
 
-    // not alive, not mutated
+    // not alive, not mutated gray
     return (SDL_Color){
-        .r = 0, .g = 0, .b = 0, .a = 255
+        .r = 128, .g = 128, .b = 128, .a = 255
     };
 }
 
