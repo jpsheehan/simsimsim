@@ -179,6 +179,12 @@ void drawGraph(const char* title, float* xs, size_t n, size_t maxN, Pos pos, Siz
     SDL_SetRenderDrawColor(renderer, borderColor.r, borderColor.g, borderColor.b, borderColor.a);
     SDL_RenderDrawRect(renderer, &border);
 
+    // draw 25%, 50%, and 75% lines
+    SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
+    SDL_RenderDrawLine(renderer, pos.x, pos.y + size.h / 4, pos.x + size.w - 2, pos.y + size.h / 4);
+    SDL_RenderDrawLine(renderer, pos.x, pos.y + size.h / 2, pos.x + size.w - 2, pos.y + size.h / 2);
+    SDL_RenderDrawLine(renderer, pos.x, pos.y + 3 * size.h / 4, pos.x + size.w - 2, pos.y + 3 * size.h / 4);
+
     if (n >= 2) 
     {
         SDL_Point *points = calloc(n, sizeof(SDL_Point));
