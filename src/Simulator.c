@@ -52,24 +52,28 @@ void simSendReady(void)
 #endif
 }
 
-void simSendPause(void) {
+void simSendPause(void)
+{
 #if FEATURE_VISUALISER
     sem_wait(&paused);
 #endif
 }
-void simSendContinue(void) {
+void simSendContinue(void)
+{
 #if FEATURE_VISUALISER
     sem_post(&paused);
 #endif
 }
 
-void simSendFramePause(void) {
+void simSendFramePause(void)
+{
 #if FEATURE_VISUALISER
     sem_wait(&framePaused);
 #endif
 }
 
-void simSendFrameContinue(void) {
+void simSendFrameContinue(void)
+{
 #if FEATURE_VISUALISER
     sem_post(&framePaused);
 #endif

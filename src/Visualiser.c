@@ -48,7 +48,7 @@ static volatile bool drawableOrgsWriteablePopulated;
 static volatile bool drawableOrgsReadablePopulated;
 static sem_t drawableOrgsLock;
 static bool paused = true;
-static bool fastPlay = false;
+// static bool fastPlay = false;
 static bool withDelay = true;
 
 void visDrawShell(void);
@@ -182,7 +182,7 @@ void visDrawShell(void)
     SDL_DestroyTexture(textTexture);
 
     // Previous Gen. Survival Rate
-    if (previousSurvivalRate >= 0.0f) {
+    if (generation > 0) {
         snprintf(buffer, 128, "Prev. Rate: %.2f%%", previousSurvivalRate);
         textSurface = TTF_RenderText_Blended(font, buffer, black);
         textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -247,10 +247,10 @@ void handleEvents()
                 withDelay = !withDelay;
                 printf("Visualiser: Frame Delay %s\n", withDelay ? "Enabled" : "Disabled");
                 break;
-            case SDLK_f:
-                fastPlay = !fastPlay;
-                printf("Visualiser: Fast Play %s\n", fastPlay ? "Enabled" : "Disabled");
-                break;
+                // case SDLK_f:
+                //     fastPlay = !fastPlay;
+                //     printf("Visualiser: Fast Play %s\n", fastPlay ? "Enabled" : "Disabled");
+                //     break;
             }
             break;
         }
@@ -279,22 +279,11 @@ void visDrawStep(void)
         drawableOrgsReadablePopulated = true;
     }
 
-    if (drawableOrgsReadablePopulated) {
-        int survivors = 0;
-        for (int i = 0; i < sim->population; i++) {
-            if (drawableOrgsRead[i].alive) {
-                survivors++;
-            }
-        }
-        survivalRate = 100.0f * (float)survivors / (float)sim->population;
-    }
-
     SDL_SetRenderTarget(renderer, fileTexture);
 
     visDrawShell();
 
-    if (drawableOrgsReadablePopulated)
-    {
+    if (drawableOrgsReadablePopulated) {
         for (int i = 0; i < sim->population; i++) {
             Organism *org = &drawableOrgsRead[i];
 
@@ -393,6 +382,17 @@ void visSetObstacles(Rect *obstacles, int count)
     memcpy(OBSTACLES, obstacles, sizeof(Rect) * count);
 }
 
+float calculateSurvivalRate(Organism* orgs)
+{
+    int survivors = 0;
+    for (int i = 0; i < sim->population; i++) {
+        if (orgs[i].alive) {
+            survivors++;
+        }
+    }
+    return 100.0f * (float)survivors / (float)sim->population;
+}
+
 void visSendGeneration(Organism *orgs, int g)
 {
     if (interrupted) return;
@@ -423,7 +423,7 @@ void visSendGeneration(Organism *orgs, int g)
     survivalRate = 100.0f;
 
     sem_post(&drawableOrgsLock);
-    
+
     if (withDelay)
         simSendFramePause();
 }
@@ -436,7 +436,7 @@ void visSendQuit(void)
 void visSendStep(Organism* orgs, int s)
 {
     if (interrupted) return;
-    if (fastPlay && (s != sim->stepsPerGeneration - 1)) return;
+    // if (fastPlay && (s != sim->stepsPerGeneration - 1)) return;
 
     sem_wait(&drawableOrgsLock);
 
@@ -446,12 +446,14 @@ void visSendStep(Organism* orgs, int s)
             copyOrganismMutableState((Organism*)&drawableOrgsWrite[i], &orgs[i]);
         }
         drawableOrgsStepChanged = true;
-        
+
         step = s;
+
+        survivalRate = calculateSurvivalRate((Organism*)drawableOrgsWrite);
     }
 
     sem_post(&drawableOrgsLock);
-    
+
     if (withDelay)
         simSendFramePause();
 }
@@ -478,8 +480,7 @@ void runUserInterface(Simulation* s)
         simSendPause();
     }
 
-    while (!interrupted)
-    {
+    while (!interrupted) {
         visDrawStep();
 
         if (withDelay) {
