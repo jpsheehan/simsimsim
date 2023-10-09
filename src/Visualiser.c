@@ -29,6 +29,7 @@ sem_t visualiserReadyLock;
 typedef enum {
     Stepping30FPS,
     Stepping60FPS,
+    Stepping90FPS,
     SteppingWithoutDelay,
     Skipping,
 } PlaySpeed;
@@ -144,7 +145,7 @@ void drawTextF(TTF_Font* font, Pos pos, SDL_Color color, const char* format, va_
     SDL_Texture* textTexture;
 
     vsnprintf(buffer, 128, format, args);
-    textSurface = TTF_RenderText_Blended(font, buffer, color);
+    textSurface = TTF_RenderUTF8_Shaded(font, buffer, color, (SDL_Color){ .r = 255, .g = 255, .b = 255, .a = 255 });
     textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
 
     sourceRect = (SDL_Rect) {
@@ -253,10 +254,12 @@ void visDrawShell(void)
         drawShellText(0, black, "State: Speed I");
     } else if (playSpeed == Stepping60FPS) {
         drawShellText(0, black, "State: Speed II");
-    } else if (playSpeed == SteppingWithoutDelay) {
+    } else if (playSpeed == Stepping90FPS) {
         drawShellText(0, black, "State: Speed III");
+    } else if (playSpeed == SteppingWithoutDelay) {
+        drawShellText(0, black, "State: Speed \u221E");
     } else if (playSpeed == Skipping) {
-        drawShellText(0, black, "State: Speed IV");
+        drawShellText(0, black, "State: Speed \u221E + 1");
     }
 
     drawShellText(1, black, "Generation: %'d", generation + 1);
@@ -302,7 +305,7 @@ void visDrawShell(void)
     }
 
     graphPos.y += 65;
-    drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation + 1, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
+    drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
 
     // obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++) {
@@ -675,6 +678,8 @@ void runUserInterface(Simulation* s)
             SDL_Delay(1000 / 30);
         } else if (playSpeed == Stepping60FPS) {
             SDL_Delay(1000 / 60);
+        } else if (playSpeed == Stepping60FPS) {
+            SDL_Delay(1000 / 120);
         }
 
         if (!paused && playSpeed != SteppingWithoutDelay && playSpeed != Skipping) {
@@ -723,5 +728,6 @@ void visSendStep(Organism *orgs, int step) {}
 void visSendQuit(void) {}
 void visSendReady(void) {}
 void runUserInterface(Simulation *sim) {}
+void visSendDisconnected(void) {}
 
 #endif
