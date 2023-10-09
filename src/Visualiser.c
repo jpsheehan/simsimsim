@@ -30,6 +30,7 @@ typedef enum {
     Stepping30FPS,
     Stepping60FPS,
     SteppingWithoutDelay,
+    Skipping,
 } PlaySpeed;
 
 static SDL_Window *window;
@@ -254,11 +255,16 @@ void visDrawShell(void)
         drawShellText(0, black, "State: Speed II");
     } else if (playSpeed == SteppingWithoutDelay) {
         drawShellText(0, black, "State: Speed III");
+    } else if (playSpeed == Skipping) {
+        drawShellText(0, black, "State: Speed IV");
     }
 
     drawShellText(1, black, "Generation: %'d", generation + 1);
-    drawShellText(2, black, "Step: %03d", step + 1);
-    drawShellText(3, black, "Survival Rate: %.2f%%", survivalRate);
+
+    if (playSpeed != Skipping) {
+        drawShellText(2, black, "Step: %03d", step + 1);
+        drawShellText(3, black, "Survival Rate: %.2f%%", survivalRate);
+    }
 
     if (generation > 0) {
         drawShellText(4, black, "Prev. Rate: %.2f%%", previousSurvivalRate);
@@ -284,14 +290,16 @@ void visDrawShell(void)
     }, disconnected || paused || (playSpeed == Stepping30FPS) ? lightGray : black, "[,] = Slower");
     drawTextAt(font, (Pos) {
         .x = paddingLeft + simW * 3 * SIM_SCALE / 3, .y = WIN_H - 35
-    }, disconnected || paused || (playSpeed == SteppingWithoutDelay) ? lightGray : black, "[.] = Faster");
+    }, disconnected || paused || (playSpeed == Skipping) ? lightGray : black, "[.] = Faster");
 
     Size graphSize = { .w = WIN_W - paddingLeft * 2 - simW * SIM_SCALE, .h = 45 };
     Pos graphPos = (Pos) {
         .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * 6
     };
 
-    drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration - 1, graphPos, graphSize, black, red, black);
+    if (playSpeed != Skipping) {
+        drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration - 1, graphPos, graphSize, black, red, black);
+    }
 
     graphPos.y += 65;
     drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation + 1, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
@@ -342,7 +350,7 @@ void handleEvents()
                 playSpeed--;
                 break;
             case SDLK_PERIOD:
-                if (disconnected || paused || (playSpeed == SteppingWithoutDelay)) break;
+                if (disconnected || paused || (playSpeed == Skipping)) break;
                 playSpeed++;
                 break;
             }
@@ -385,26 +393,30 @@ void setRenderDrawColor(SDL_Color color)
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 }
 
+void copyBackbufferToFrontBuffer(void)
+{
+    sem_wait(&drawableOrgsLock);
+
+    for (int i = 0; i < sim->population; i++) {
+        destroyOrganism(&drawableOrgsRead[i]);
+        drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i]);
+    }
+    drawableOrgsGenerationChanged = false;
+    drawableOrgsStepChanged = false;
+    drawableOrgsReadablePopulated = true;
+
+    sem_post(&drawableOrgsLock);
+}
+
 void visDrawStep(void)
 {
     handleEvents();
 
     if (interrupted) return;
 
-    if (drawableOrgsGenerationChanged || drawableOrgsStepChanged) {
-
-        sem_wait(&drawableOrgsLock);
-
-        for (int i = 0; i < sim->population; i++) {
-            destroyOrganism(&drawableOrgsRead[i]);
-            drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i]);
-        }
-        drawableOrgsGenerationChanged = false;
-        drawableOrgsStepChanged = false;
-
-        sem_post(&drawableOrgsLock);
-
-        drawableOrgsReadablePopulated = true;
+    if ((playSpeed == Skipping && drawableOrgsStepChanged) ||
+        (playSpeed != Skipping && (drawableOrgsGenerationChanged || drawableOrgsStepChanged))) {
+        copyBackbufferToFrontBuffer();
     }
 
     SDL_SetRenderTarget(renderer, fileTexture);
@@ -530,14 +542,8 @@ float calculateSurvivalRate(Organism* orgs)
     return 100.0f * (float)survivors / (float)sim->population;
 }
 
-void visSendGeneration(Organism *orgs, int g)
+void copyOrganismsToBackbuffer(Organism* orgs)
 {
-    TRACE_BEGIN;
-
-    if (interrupted) {
-        TRACE_END;
-        return;
-    }
 
     sem_wait(&drawableOrgsLock);
 
@@ -551,11 +557,25 @@ void visSendGeneration(Organism *orgs, int g)
         drawableOrgsWrite[i] = copyOrganism(&orgs[i]);
     }
 
-    sem_post(&drawableOrgsLock);
-
     drawableOrgsWriteablePopulated = true;
 
-    drawableOrgsStepChanged = true;
+    sem_post(&drawableOrgsLock);
+}
+
+void visSendGeneration(Organism *orgs, int g)
+{
+    TRACE_BEGIN;
+
+    if (interrupted) {
+        TRACE_END;
+        return;
+    }
+
+    copyOrganismsToBackbuffer(orgs);
+
+    if (playSpeed != Skipping) {
+        drawableOrgsStepChanged = true;
+    }
     drawableOrgsGenerationChanged = true;
 
     generation = g;
@@ -568,7 +588,7 @@ void visSendGeneration(Organism *orgs, int g)
 
     survivalRate = 100.0f;
 
-    if (playSpeed != SteppingWithoutDelay) {
+    if (playSpeed != SteppingWithoutDelay && playSpeed != Skipping) {
         simSendFramePause();
     }
 
@@ -591,6 +611,11 @@ void visSendStep(Organism* orgs, int s)
         return;
     }
 
+    if (playSpeed == Skipping && s != sim->stepsPerGeneration - 1) {
+        TRACE_END;
+        return;
+    }
+
     sem_wait(&drawableOrgsLock);
 
     if (drawableOrgsWriteablePopulated) {
@@ -609,7 +634,11 @@ void visSendStep(Organism* orgs, int s)
 
     sem_post(&drawableOrgsLock);
 
-    if (playSpeed != SteppingWithoutDelay) {
+    if (playSpeed == Skipping) {
+        copyBackbufferToFrontBuffer();
+    }
+
+    if (playSpeed != SteppingWithoutDelay && playSpeed != Skipping) {
         simSendFramePause();
     }
 
@@ -648,7 +677,7 @@ void runUserInterface(Simulation* s)
             SDL_Delay(1000 / 60);
         }
 
-        if (!paused && playSpeed != SteppingWithoutDelay) {
+        if (!paused && playSpeed != SteppingWithoutDelay && playSpeed != Skipping) {
             simSendFrameContinue();
         }
     }
