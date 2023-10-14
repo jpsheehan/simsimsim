@@ -197,13 +197,13 @@ void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism
 
         switch (input->id & 0xff) {
         case IN_WORLD_X:
-            input->state = (float)org->pos.x / (float)sim->size.w;
+            input->state = 2.0 * (float)org->pos.x / (float)sim->size.w - 1.0;
             break;
         case IN_WORLD_Y:
-            input->state = (float)org->pos.y / (float)sim->size.h;
+            input->state = 2.0 * (float)org->pos.y / (float)sim->size.h - 1.0;
             break;
         case IN_AGE:
-            input->state = (float)currentStep / (float)sim->stepsPerGeneration;
+            input->state = 2.0 * (float)currentStep / (float)sim->stepsPerGeneration - 1.0;
             break;
         case IN_COLLIDE:
             input->state = org->didCollide ? 1.0 : 0.0;
