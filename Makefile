@@ -17,7 +17,7 @@ debug: $(EXE)
 release: CFLAGS += $(CFLAGS_RELEASE)
 release: clean $(EXE)
 
-$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o $(OBJ)/NeuralNet.o $(OBJ)/Genome.o
+$(EXE): $(OBJ)/Program.o $(OBJ)/Direction.o $(OBJ)/Geometry.o $(OBJ)/Arena.o $(OBJ)/Organism.o $(OBJ)/Simulator.o $(OBJ)/Visualiser.o $(OBJ)/Selectors.o $(OBJ)/NeuralNet.o $(OBJ)/Genome.o
 	$(CC) $^ $(CFLAGS) -o $@ $(LFLAGS) $(SDL_LFLAGS)
 
 $(OBJ)/Direction.o: $(SRC)/Direction.c $(INC)/Direction.h $(INC)/Common.h
@@ -45,6 +45,9 @@ $(OBJ)/NeuralNet.o: $(SRC)/NeuralNet.c $(INC)/NeuralNet.h $(INC)/Common.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 $(OBJ)/Genome.o: $(SRC)/Genome.c $(INC)/Genome.h $(INC)/Common.h
+	$(CC) $< $(CFLAGS) -c -o $@
+
+$(OBJ)/Arena.o: $(SRC)/Arena.c $(INC)/Arena.h
 	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:

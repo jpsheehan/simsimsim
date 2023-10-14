@@ -14,6 +14,7 @@
 #include "Visualiser.h"
 #include "Geometry.h"
 #include "Organism.h"
+#include "Arena.h"
 
 static volatile bool interrupted = false;
 #if FEATURE_VISUALISER
@@ -96,13 +97,15 @@ void runSimulation(Simulation *s)
     srand(sim->seed);
     printf("Seed is %d\n", sim->seed);
 
-    Organism *orgs = calloc(sim->population, sizeof(Organism));
-    Organism *nextGenOrgs = calloc(sim->population, sizeof(Organism));
-    Organism **orgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
-    Organism **prevOrgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
+    Arena arena = newArena(1024 * 1024 * 100);
+
+    Organism *orgs = aalloc(&arena, sim->population * sizeof(Organism));
+    Organism *nextGenOrgs = aalloc(&arena, sim->population * sizeof(Organism));
+    Organism **orgsByPosition = aalloc(&arena, sim->size.w * sim->size.h * sizeof(Organism*));
+    Organism **prevOrgsByPosition = aalloc(&arena, sim->size.w * sim->size.h * sizeof(Organism*));
 
     for (int i = 0; i < sim->population; i++) {
-        orgs[i] = makeRandomOrganism(sim, orgsByPosition);
+        orgs[i] = makeRandomOrganism(&arena, sim, orgsByPosition);
         orgs[i].id = i;
     }
 
@@ -121,8 +124,10 @@ void runSimulation(Simulation *s)
 #endif
     visSendReady();
 
+    Arena generationArena = newArena(1024 * 1024 * 100);
+
     for (int g = 0; g < sim->maxGenerations; g++) {
-        visSendGeneration(orgs, g);
+        visSendGeneration(&generationArena, orgs, g);
 
 #if FEATURE_VISUALISER
         sem_wait(&paused);
@@ -140,7 +145,7 @@ void runSimulation(Simulation *s)
             memcpy(prevOrgsByPosition, orgsByPosition, sim->size.h * sim->size.w * sizeof(Organism*));
             memset(orgsByPosition, 0, sim->size.h * sim->size.w * sizeof(Organism*));
 
-            visSendStep(orgs, step);
+            visSendStep(&generationArena, orgs, step);
 
 #if FEATURE_VISUALISER
             sem_wait(&paused);
@@ -182,7 +187,7 @@ void runSimulation(Simulation *s)
             }
         }
 
-        visSendStep(orgs, sim->stepsPerGeneration - 1);
+        visSendStep(&generationArena, orgs, sim->stepsPerGeneration - 1);
 
 #if FEATURE_VISUALISER
         sem_wait(&paused);
@@ -228,7 +233,7 @@ void runSimulation(Simulation *s)
         for (int i = 0; i < sim->population; i++) {
             Organism *a, *b;
             findMates(orgs, sim->population, &a, &b);
-            nextGenOrgs[i] = makeOffspring(a, b, sim, orgsByPosition);
+            nextGenOrgs[i] = makeOffspring(&generationArena, a, b, sim, orgsByPosition);
             nextGenOrgs[i].id = i;
         }
 
@@ -243,6 +248,7 @@ void runSimulation(Simulation *s)
         if (interrupted || survivors <= 1)
             goto quitOuterLoop;
 
+        resetArena(&generationArena);
     }
 
 quitOuterLoop:
@@ -261,8 +267,6 @@ quitOuterLoop:
     sem_destroy(&framePaused);
 #endif
 
-    free(orgs);
-    free(nextGenOrgs);
-    free(orgsByPosition);
-    free(prevOrgsByPosition);
+    destroyArena(&generationArena);
+    destroyArena(&arena);
 }

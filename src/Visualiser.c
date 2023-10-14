@@ -1,7 +1,6 @@
 #include "Features.h"
 #include "Common.h"
-#include "SDL_blendmode.h"
-#include "SDL_render.h"
+#include "Arena.h"
 
 #if FEATURE_VISUALISER
 
@@ -65,9 +64,9 @@ static float* survivalRatesEachGeneration;
 static OrganismId selectedOrganism;
 static volatile PlaySpeed playSpeed;
 
-void visDrawShell(void);
+void visDrawShell(Arena*);
 
-void visInit(uint32_t w, uint32_t h)
+void visInit(Arena* arena, uint32_t w, uint32_t h)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         fprintf(stderr, "Could not init SDL\n");
@@ -130,10 +129,10 @@ void visInit(uint32_t w, uint32_t h)
     SDL_QueryTexture(fileTexture, NULL, NULL, &width, &height);
     fileSurface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
 
-    survivalRatesEachStep = calloc(sim->stepsPerGeneration, sizeof(float));
-    survivalRatesEachGeneration = calloc(sim->maxGenerations, sizeof(float));
+    survivalRatesEachStep = aalloc(arena, sim->stepsPerGeneration * sizeof(float));
+    survivalRatesEachGeneration = aalloc(arena, sim->maxGenerations * sizeof(float));
 
-    visDrawShell();
+    visDrawShell(arena);
     SDL_RenderPresent(renderer);
 }
 
@@ -179,7 +178,7 @@ void drawShellText(int row, SDL_Color color, const char* format, ...)
 }
 
 // draws a line graph of points where each point should be normalised between 0 and 1
-void drawGraph(const char* title, float* xs, size_t n, size_t maxN, Pos pos, Size size, SDL_Color borderColor, SDL_Color lineColor, SDL_Color titleColor)
+void drawGraph(Arena* arena, const char* title, float* xs, size_t n, size_t maxN, Pos pos, Size size, SDL_Color borderColor, SDL_Color lineColor, SDL_Color titleColor)
 {
     SDL_Rect border = { .x = pos.x, .y = pos.y, .w = size.w, .h = size.h };
 
@@ -194,7 +193,7 @@ void drawGraph(const char* title, float* xs, size_t n, size_t maxN, Pos pos, Siz
     SDL_RenderDrawLine(renderer, pos.x, pos.y + 3 * size.h / 4, pos.x + size.w - 2, pos.y + 3 * size.h / 4);
 
     if (n >= 2) {
-        SDL_Point *points = calloc(n, sizeof(SDL_Point));
+        SDL_Point *points = aalloc(arena, n * sizeof(SDL_Point));
 
         for (int i = 0; i < n; i++) {
             points[i] = (SDL_Point) {
@@ -205,7 +204,6 @@ void drawGraph(const char* title, float* xs, size_t n, size_t maxN, Pos pos, Siz
         SDL_SetRenderDrawColor(renderer, lineColor.r, lineColor.g, lineColor.b, lineColor.a);
         SDL_RenderDrawLines(renderer, points, n);
 
-        free(points);
         points = NULL;
     }
 
@@ -221,7 +219,7 @@ void visSendDisconnected(void)
     disconnected = true;
 }
 
-void visDrawShell(void)
+void visDrawShell(Arena* arena)
 {
     // clear the window
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -301,11 +299,11 @@ void visDrawShell(void)
     };
 
     if (playSpeed != Skipping) {
-        drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration - 1, graphPos, graphSize, black, red, black);
+        drawGraph(arena, "Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration - 1, graphPos, graphSize, black, red, black);
     }
 
     graphPos.y += 65;
-    drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
+    drawGraph(arena, "Survival Rate (per Generation)", survivalRatesEachGeneration, generation, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
 
     // obstacles
     for (int i = 0; i < OBSTACLE_COUNT; i++) {
@@ -396,13 +394,13 @@ void setRenderDrawColor(SDL_Color color)
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 }
 
-void copyBackbufferToFrontBuffer(void)
+void copyBackbufferToFrontBuffer(Arena* arena)
 {
     sem_wait(&drawableOrgsLock);
 
     for (int i = 0; i < sim->population; i++) {
         destroyOrganism(&drawableOrgsRead[i]);
-        drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i]);
+        drawableOrgsRead[i] = copyOrganism(arena, (Organism*)&drawableOrgsWrite[i]);
     }
     drawableOrgsGenerationChanged = false;
     drawableOrgsStepChanged = false;
@@ -411,7 +409,7 @@ void copyBackbufferToFrontBuffer(void)
     sem_post(&drawableOrgsLock);
 }
 
-void visDrawStep(void)
+void visDrawStep(Arena* arena)
 {
     handleEvents();
 
@@ -419,12 +417,12 @@ void visDrawStep(void)
 
     if ((playSpeed == Skipping && drawableOrgsStepChanged) ||
         (playSpeed != Skipping && (drawableOrgsGenerationChanged || drawableOrgsStepChanged))) {
-        copyBackbufferToFrontBuffer();
+        copyBackbufferToFrontBuffer(arena);
     }
 
     SDL_SetRenderTarget(renderer, fileTexture);
 
-    visDrawShell();
+    visDrawShell(arena);
 
     if (drawableOrgsReadablePopulated) {
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -487,10 +485,8 @@ void visDrawStep(void)
 
 void visDestroy(void)
 {
-    free(survivalRatesEachStep);
     survivalRatesEachStep = NULL;
 
-    free(survivalRatesEachGeneration);
     survivalRatesEachGeneration = NULL;
 
     SDL_FreeSurface(fileSurface);
@@ -521,16 +517,12 @@ void visDestroy(void)
     SDL_Quit();
 }
 
-void visSetObstacles(Rect *obstacles, int count)
+void visSetObstacles(Arena* arena, Rect *obstacles, int count)
 {
-    if (OBSTACLES != NULL) {
-        free(OBSTACLES);
-        OBSTACLES = NULL;
-    }
     OBSTACLE_COUNT = count;
     if (count == 0)
         return;
-    OBSTACLES = calloc(count, sizeof(Rect));
+    OBSTACLES = aalloc(arena, count * sizeof(Rect));
     memcpy(OBSTACLES, obstacles, sizeof(Rect) * count);
 }
 
@@ -545,7 +537,7 @@ float calculateSurvivalRate(Organism* orgs)
     return 100.0f * (float)survivors / (float)sim->population;
 }
 
-void copyOrganismsToBackbuffer(Organism* orgs)
+void copyOrganismsToBackbuffer(Arena* arena, Organism* orgs)
 {
 
     sem_wait(&drawableOrgsLock);
@@ -557,7 +549,7 @@ void copyOrganismsToBackbuffer(Organism* orgs)
     }
 
     for (int i = 0; i < sim->population; i++) {
-        drawableOrgsWrite[i] = copyOrganism(&orgs[i]);
+        drawableOrgsWrite[i] = copyOrganism(arena, &orgs[i]);
     }
 
     drawableOrgsWriteablePopulated = true;
@@ -565,7 +557,7 @@ void copyOrganismsToBackbuffer(Organism* orgs)
     sem_post(&drawableOrgsLock);
 }
 
-void visSendGeneration(Organism *orgs, int g)
+void visSendGeneration(Arena* arena, Organism *orgs, int g)
 {
     TRACE_BEGIN;
 
@@ -574,7 +566,7 @@ void visSendGeneration(Organism *orgs, int g)
         return;
     }
 
-    copyOrganismsToBackbuffer(orgs);
+    copyOrganismsToBackbuffer(arena, orgs);
 
     if (playSpeed != Skipping) {
         drawableOrgsStepChanged = true;
@@ -605,7 +597,7 @@ void visSendQuit(void)
     TRACE_END;
 }
 
-void visSendStep(Organism* orgs, int s)
+void visSendStep(Arena* arena, Organism* orgs, int s)
 {
     TRACE_BEGIN;
 
@@ -638,7 +630,7 @@ void visSendStep(Organism* orgs, int s)
     sem_post(&drawableOrgsLock);
 
     if (playSpeed == Skipping) {
-        copyBackbufferToFrontBuffer();
+        copyBackbufferToFrontBuffer(arena);
     }
 
     if (playSpeed != SteppingWithoutDelay && playSpeed != Skipping) {
@@ -651,9 +643,10 @@ void visSendStep(Organism* orgs, int s)
 void runUserInterface(Simulation* s)
 {
     sim = s;
+    Arena arena = newArena(1024 * 1024 * 100);
 
-    drawableOrgsWrite = calloc(sim->population, sizeof(Organism));
-    drawableOrgsRead = calloc(sim->population, sizeof(Organism));
+    drawableOrgsWrite = aalloc(&arena, sim->population * sizeof(Organism));
+    drawableOrgsRead = aalloc(&arena, sim->population * sizeof(Organism));
     sem_init(&drawableOrgsLock, 0, 1);
 
     drawableOrgsStepChanged = false;
@@ -662,7 +655,7 @@ void runUserInterface(Simulation* s)
     drawableOrgsReadablePopulated = false;
     playSpeed = Stepping30FPS;
 
-    visInit(sim->size.w, sim->size.h);
+    visInit(&arena, sim->size.w, sim->size.h);
 
     simSendReady();
     sem_wait(&visualiserReadyLock);
@@ -672,7 +665,7 @@ void runUserInterface(Simulation* s)
     }
 
     while (!interrupted) {
-        visDrawStep();
+        visDrawStep(&arena);
 
         if (playSpeed == Stepping30FPS) {
             SDL_Delay(1000 / 30);
@@ -697,7 +690,6 @@ void runUserInterface(Simulation* s)
             destroyOrganism(&drawableOrgsRead[i]);
         }
         drawableOrgsReadablePopulated = false;
-        free(drawableOrgsRead);
         drawableOrgsRead = NULL;
     }
 
@@ -706,13 +698,14 @@ void runUserInterface(Simulation* s)
             destroyOrganism((Organism*)&drawableOrgsWrite[i]);
         }
         drawableOrgsWriteablePopulated = false;
-        free((void*)drawableOrgsWrite);
         drawableOrgsWrite = NULL;
     }
 
     sem_destroy(&drawableOrgsLock);
 
     visDestroy();
+
+    destroyArena(&arena);
 }
 
 void visSendReady(void)

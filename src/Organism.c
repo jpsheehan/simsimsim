@@ -26,7 +26,7 @@ static char *OutputTypeStrings[OUT_MAX] = {
     "TURN_LEFT_RIGHT", "TURN_RANDOM"
 };
 
-Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition)
+Organism makeOffspring(Arena* arena, Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition)
 {
     Organism org = {
         .pos =
@@ -41,7 +41,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
         .direction = getRandomDirection()
     };
 
-    org.genome = mutateGenome(reproduce(&a->genome, &b->genome), sim->mutationRate, &org.mutated);
+    org.genome = mutateGenome(reproduce(arena, &a->genome, &b->genome), sim->mutationRate, &org.mutated);
 
     while (getOrganismByPos(org.pos, sim, orgsByPosition, false) != NULL ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
@@ -49,7 +49,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
         org.pos.y = rand() % sim->size.h;
     }
 
-    org.net = buildNeuralNet(&org.genome, sim);
+    org.net = buildNeuralNet(arena, &org.genome, sim);
     org.parentA = a->id;
     org.parentB = b->id;
 
@@ -59,7 +59,6 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
 void destroyOrganism(Organism *org)
 {
     destroyNeuralNet(&org->net);
-    free(org->genome.genes);
     org->genome.genes = NULL;
     org->genome.count = 0;
 }
@@ -422,11 +421,11 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOr
     handleCollisions(org, sim, orgsByPosition, prevOrgsByPosition);
 }
 
-Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
+Organism makeRandomOrganism(Arena* arena, Simulation* sim, Organism** orgsByPosition)
 {
     Organism org = {
         .pos = (Pos){.x = rand() % sim->size.w, .y = rand() % sim->size.h},
-        .genome = makeRandomGenome(sim->numberOfGenes),
+        .genome = makeRandomGenome(arena, sim->numberOfGenes),
         .alive = true,
         .didCollide = false,
         .energyLevel = 1.0,
@@ -440,18 +439,18 @@ Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
         org.pos.y = rand() % sim->size.h;
     }
 
-    org.net = buildNeuralNet(&org.genome, sim);
+    org.net = buildNeuralNet(arena, &org.genome, sim);
 
     return org;
 }
 
 /// Makes a deep copy of the organism; this new Organism will need to be destroyed independently of its original.
-Organism copyOrganism(Organism *src)
+Organism copyOrganism(Arena* arena, Organism *src)
 {
     Organism dest = *src;
 
-    dest.genome = copyGenome(&src->genome);
-    dest.net = copyNeuralNet(&src->net);
+    dest.genome = copyGenome(arena, &src->genome);
+    dest.net = copyNeuralNet(arena, &src->net);
 
     return dest;
 }

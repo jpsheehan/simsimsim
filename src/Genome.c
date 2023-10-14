@@ -5,11 +5,11 @@
 #include <stdio.h>
 
 // make a deep copy of the genome
-Genome copyGenome(Genome* src)
+Genome copyGenome(Arena* arena, Genome* src)
 {
     Genome dest = *src;
 
-    dest.genes = calloc(src->count, sizeof(Gene));
+    dest.genes = aalloc(arena, src->count * sizeof(Gene));
     memcpy(dest.genes, src->genes, sizeof(Gene) * src->count);
 
     return dest;
@@ -47,24 +47,23 @@ void testGeneCreation()
     }
 }
 
-char *geneToString(Gene *gene)
+char *geneToString(Arena* arena, Gene *gene)
 {
-    char *buffer = calloc(9, sizeof(char));
+    char *buffer = aalloc(arena, 9 * sizeof(char));
     snprintf(buffer, 9, "%08X", geneToInt(gene));
     return buffer;
 }
 
-char *genomeToString(Genome *genome)
+char *genomeToString(Arena* arena, Genome *genome)
 {
     size_t size = 9 * genome->count + 1;
-    char *buffer = calloc(size, sizeof(char));
+    char *buffer = aalloc(arena, size * sizeof(char));
     for (int i = 0; i < genome->count; i++) {
-        char *geneBuffer = geneToString(&genome->genes[i]);
+        char *geneBuffer = geneToString(arena, &genome->genes[i]);
         sprintf(&buffer[i * 9], "%s", geneBuffer);
         if (i + 1 != genome->count) {
             buffer[i * 9 + 8] = ' ';
         }
-        free(geneBuffer);
     }
     return buffer;
 }
@@ -96,9 +95,9 @@ uint32_t rand_uint32(void)
     return (uint32_t)((uint16_t)(rand()) << 16) | (uint16_t)rand();
 }
 
-Genome makeRandomGenome(uint8_t numGenes)
+Genome makeRandomGenome(Arena* arena, uint8_t numGenes)
 {
-    Genome genome = {.count = numGenes, .genes = calloc(numGenes, sizeof(Gene))};
+    Genome genome = {.count = numGenes, .genes = aalloc(arena, numGenes * sizeof(Gene))};
 
     for (int i = 0; i < numGenes; i++) {
         genome.genes[i] = intToGene(rand_uint32());
@@ -107,12 +106,12 @@ Genome makeRandomGenome(uint8_t numGenes)
     return genome;
 }
 
-Genome reproduce(Genome *a, Genome *b)
+Genome reproduce(Arena* arena, Genome *a, Genome *b)
 {
     int largerCount = a->count > b->count ? a->count : b->count;
 
     Genome genome = {.count = largerCount,
-                     .genes = calloc(largerCount, sizeof(Gene))
+                     .genes = aalloc(arena, largerCount * sizeof(Gene))
                     };
 
     for (int i = 0; i < largerCount; i++) {

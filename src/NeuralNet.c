@@ -13,7 +13,7 @@ Neuron *findNeuronById(Neuron* neurons, size_t neuronCount, uint16_t id)
     return NULL;
 }
 
-NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
+NeuralNet buildNeuralNet(Arena* arena, Genome *genome, Simulation* sim)
 {
     Neuron neurons[128] = {0};
     uint8_t usedNeurons = 0;
@@ -81,12 +81,12 @@ NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
     NeuralNet net;
 
     net.connectionCount = usedConnections;
-    net.connections = calloc(usedConnections, sizeof(NeuralConnection));
+    net.connections = aalloc(arena, usedConnections * sizeof(NeuralConnection));
     memcpy(net.connections, connections,
            usedConnections * sizeof(NeuralConnection));
 
     net.neuronCount = usedNeurons;
-    net.neurons = calloc(usedNeurons, sizeof(Neuron));
+    net.neurons = aalloc(arena, usedNeurons * sizeof(Neuron));
     memcpy(net.neurons, neurons, usedNeurons * sizeof(Neuron));
 
     return net;
@@ -94,8 +94,6 @@ NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
 
 void destroyNeuralNet(NeuralNet *net)
 {
-    free(net->connections);
-    free(net->neurons);
     net->connections = NULL;
     net->neurons = NULL;
     net->connectionCount = 0;
@@ -103,14 +101,14 @@ void destroyNeuralNet(NeuralNet *net)
 }
 
 // make a deep copy of the neural net
-NeuralNet copyNeuralNet(NeuralNet* src)
+NeuralNet copyNeuralNet(Arena* arena, NeuralNet* src)
 {
     NeuralNet dest = *src;
 
-    dest.connections = calloc(src->connectionCount, sizeof(NeuralConnection));
+    dest.connections = aalloc(arena, src->connectionCount * sizeof(NeuralConnection));
     memcpy(dest.connections, src->connections, src->connectionCount * sizeof(NeuralConnection));
 
-    dest.neurons = calloc(src->neuronCount, sizeof(Neuron));
+    dest.neurons = aalloc(arena, src->neuronCount * sizeof(Neuron));
     memcpy(dest.neurons, src->neurons, src->neuronCount * sizeof(Neuron));
 
     return dest;

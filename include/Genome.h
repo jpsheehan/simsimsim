@@ -2,10 +2,11 @@
 #define Genome_h
 
 #include "Common.h"
+#include "Arena.h"
 
-Genome copyGenome(Genome* src);
-Genome makeRandomGenome(uint8_t numGenes);
+Genome copyGenome(Arena* arena, Genome* src);
+Genome makeRandomGenome(Arena* arena, uint8_t numGenes);
 Genome mutateGenome(Genome genome, float mutationRate, bool* didMutate);
-Genome reproduce(Genome *a, Genome *b);
+Genome reproduce(Arena* arena, Genome *a, Genome *b);
 
 #endif
