@@ -50,7 +50,7 @@ int main(int argc, const char* argv[])
     sim.size = (Size) {
         .w = 128, .h = 128
     };
-    sim.energyToMove = 0.02;
+    sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
     sim.maxInternalNeurons = 3;
     sim.numberOfGenes = 12;

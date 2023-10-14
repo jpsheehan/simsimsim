@@ -9,4 +9,7 @@
         "**/Thumbs.db": true
     },
     "explorer.excludeGitIgnore": true,
+    "files.associations": {
+        "linegraph.h": "c"
+    },
 }

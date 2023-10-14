@@ -1,10 +1,9 @@
 #include "Features.h"
 #include "Common.h"
-#include "SDL_blendmode.h"
-#include "SDL_render.h"
 
 #if FEATURE_VISUALISER
 
+#include "LineGraph.h"
 #include "Organism.h"
 #include "Simulator.h"
 #include "Visualiser.h"
@@ -58,8 +57,10 @@ static volatile bool drawableOrgsReadablePopulated;
 static volatile bool disconnected = false;
 static sem_t drawableOrgsLock;
 static bool paused = true;
-static float* survivalRatesEachStep;
-static float* survivalRatesEachGeneration;
+
+static LineGraph survivalRatesEachStep;
+static LineGraph survivalRatesEachGeneration;
+
 static OrganismId selectedOrganism;
 static volatile PlaySpeed playSpeed;
 
@@ -128,8 +129,14 @@ void visInit(uint32_t w, uint32_t h)
     SDL_QueryTexture(fileTexture, NULL, NULL, &width, &height);
     fileSurface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
 
-    survivalRatesEachStep = calloc(sim->stepsPerGeneration, sizeof(float));
-    survivalRatesEachGeneration = calloc(sim->maxGenerations, sizeof(float));
+    Size graphSize = { .w = WIN_W - paddingLeft * 2 - simW * SIM_SCALE, .h = 45 };
+    Pos graphPos = (Pos) {
+        .x = paddingLeft * 1.5 + simW * SIM_SCALE,
+        .y = paddingTop + 20 * 6
+    };
+    survivalRatesEachGeneration = createLineGraph(sim->maxGenerations, (SDL_Color){.r = 0, .g = 0, .b = 255, .a = 255 }, graphPos, graphSize);
+    graphPos.y += 65;
+    survivalRatesEachStep = createLineGraph(sim->stepsPerGeneration, (SDL_Color){.r = 255, .g = 0, .b = 0, .a = 255 }, graphPos, graphSize);
 
     visDrawShell();
     SDL_RenderPresent(renderer);
@@ -176,44 +183,6 @@ void drawShellText(int row, SDL_Color color, const char* format, ...)
     va_end(args);
 }
 
-// draws a line graph of points where each point should be normalised between 0 and 1
-void drawGraph(const char* title, float* xs, size_t n, size_t maxN, Pos pos, Size size, SDL_Color borderColor, SDL_Color lineColor, SDL_Color titleColor)
-{
-    SDL_Rect border = { .x = pos.x, .y = pos.y, .w = size.w, .h = size.h };
-
-    // draw outline
-    SDL_SetRenderDrawColor(renderer, borderColor.r, borderColor.g, borderColor.b, borderColor.a);
-    SDL_RenderDrawRect(renderer, &border);
-
-    // draw 25%, 50%, and 75% lines
-    SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
-    SDL_RenderDrawLine(renderer, pos.x, pos.y + size.h / 4, pos.x + size.w - 2, pos.y + size.h / 4);
-    SDL_RenderDrawLine(renderer, pos.x, pos.y + size.h / 2, pos.x + size.w - 2, pos.y + size.h / 2);
-    SDL_RenderDrawLine(renderer, pos.x, pos.y + 3 * size.h / 4, pos.x + size.w - 2, pos.y + 3 * size.h / 4);
-
-    if (n >= 2) {
-        SDL_Point *points = calloc(n, sizeof(SDL_Point));
-
-        for (int i = 0; i < n; i++) {
-            points[i] = (SDL_Point) {
-                .x = border.x + 1 + (int)((border.w - 2) * (float)i / (float)maxN), .y = border.y + 1 + border.h - 2 - (int)((float)(border.h - 2) * xs[i])
-            };
-        }
-
-        SDL_SetRenderDrawColor(renderer, lineColor.r, lineColor.g, lineColor.b, lineColor.a);
-        SDL_RenderDrawLines(renderer, points, n);
-
-        free(points);
-        points = NULL;
-    }
-
-    if (title == NULL) return;
-
-    pos.x += 2;
-    pos.y -= 16;
-    drawTextAt(smallFont, pos, titleColor, "%s", title);
-}
-
 void visSendDisconnected(void)
 {
     disconnected = true;
@@ -237,8 +206,8 @@ void visDrawShell(void)
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
     SDL_Color gray = { .r = 128, .g = 128, .b = 128, .a = 255 };
     SDL_Color lightGray = { .r = 192, .g = 192, .b = 192, .a = 255 };
-    SDL_Color red = { .r = 255, .g = 0, .b = 0, .a = 255 };
-    SDL_Color blue = { .r = 0, .g = 0, .b = 255, .a = 255 };
+    // SDL_Color red = { .r = 255, .g = 0, .b = 0, .a = 255 };
+    // SDL_Color blue = { .r = 0, .g = 0, .b = 255, .a = 255 };
 
     drawTextAt(titleFont, (Pos) {
         .x = paddingLeft, .y = 10
@@ -293,17 +262,13 @@ void visDrawShell(void)
         .x = paddingLeft + simW * 3 * SIM_SCALE / 3, .y = WIN_H - 35
     }, disconnected || paused || (playSpeed == Skipping) ? lightGray : black, "[.] = Faster");
 
-    Size graphSize = { .w = WIN_W - paddingLeft * 2 - simW * SIM_SCALE, .h = 45 };
-    Pos graphPos = (Pos) {
-        .x = paddingLeft * 1.5 + simW * SIM_SCALE, paddingTop + 20 * 6
-    };
-
     if (playSpeed != Skipping) {
-        drawGraph("Survival Rate (per Step)", survivalRatesEachStep, step + 1, sim->stepsPerGeneration - 1, graphPos, graphSize, black, red, black);
+        renderLineGraph(&survivalRatesEachStep, renderer);
+        drawTextAt(smallFont, (Pos){.x = survivalRatesEachStep.pos.x + 2, .y = survivalRatesEachStep.pos.y - 16}, black, "Survival Rate (per Step)");
     }
 
-    graphPos.y += 65;
-    drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation, generation - 1, graphPos, graphSize, black, blue, black);
+    renderLineGraph(&survivalRatesEachGeneration, renderer);
+    drawTextAt(smallFont, (Pos){.x = survivalRatesEachGeneration.pos.x + 2, .y = survivalRatesEachGeneration.pos.y - 16}, black, "Survival Rate (per Generation)");
 
     // obstacles
     for (int i = 0; i < sim->obstaclesCount; i++) {
@@ -485,11 +450,8 @@ void visDrawStep(void)
 
 void visDestroy(void)
 {
-    free(survivalRatesEachStep);
-    survivalRatesEachStep = NULL;
-
-    free(survivalRatesEachGeneration);
-    survivalRatesEachGeneration = NULL;
+    destroyLineGraph(&survivalRatesEachGeneration);
+    destroyLineGraph(&survivalRatesEachStep);
 
     SDL_FreeSurface(fileSurface);
     fileSurface = NULL;
@@ -617,7 +579,8 @@ void visSendStep(Organism* orgs, int s)
 
         survivalRate = calculateSurvivalRate((Organism*)drawableOrgsWrite);
 
-        survivalRatesEachStep[s] = survivalRatesEachGeneration[generation] = survivalRate / 100.0f;
+        setPointOnGraph(&survivalRatesEachStep, step, survivalRate / 100.0f);
+        setPointOnGraph(&survivalRatesEachGeneration, generation, survivalRate / 100.0f);
     }
 
     sem_post(&drawableOrgsLock);
