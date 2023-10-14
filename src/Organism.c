@@ -233,7 +233,7 @@ void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism
         }
 
         if (fabs(input->state) > 1.0f)
-            printf("Excited neuron #%d to level %.2f\n", input->id, input->state);
+            printf("Overexcited neuron #%d to level %.2f\n", input->id, input->state);
     }
 }
 
@@ -272,19 +272,13 @@ void computeNeuronStates(Organism* org)
             sink->inputsVisited++;
             source->outputsVisited++;
             connection->visited = true;
-            // printf("Visited connection between neuron #%d and neuron #%d\n",
-            // source->id, sink->id);
 
             // normalise the sink state if it has been completed between -1.0 and 1.0.
             if (sink->inputsVisited == sink->inputs) {
                 sink->state = tanhf(sink->state / (float)sink->inputs);
-                // printf("Normalised neuron #%d state to %.2f\n", sink->id,
-                // sink->state);
             }
 
             visits++;
-            // printf("Source has %d of %d inputs fulfilled\n", source->inputsVisited,
-            // source->inputs);
         }
     } while (visits > 0);
 }

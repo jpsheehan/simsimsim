@@ -42,8 +42,6 @@ static TTF_Font* smallFont;
 static uint32_t generation;
 static uint32_t step;
 static int paddingLeft, paddingTop, simW, simH;
-static Rect *OBSTACLES = NULL;
-static int OBSTACLE_COUNT = 0;
 static SDL_Texture* fileTexture = NULL;
 static SDL_Surface* fileSurface = NULL;
 static float survivalRate;
@@ -305,12 +303,12 @@ void visDrawShell(void)
     }
 
     graphPos.y += 65;
-    drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation, sim->maxGenerations - 1, graphPos, graphSize, black, blue, black);
+    drawGraph("Survival Rate (per Generation)", survivalRatesEachGeneration, generation, generation - 1, graphPos, graphSize, black, blue, black);
 
     // obstacles
-    for (int i = 0; i < OBSTACLE_COUNT; i++) {
-        Rect *r = &OBSTACLES[i];
-        SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
+    for (int i = 0; i < sim->obstaclesCount; i++) {
+        Rect *r = &sim->obstacles[i];
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_RenderFillRect(renderer,
         &(SDL_Rect) {
             .x = paddingLeft + r->x * SIM_SCALE,
@@ -519,19 +517,6 @@ void visDestroy(void)
     IMG_Quit();
 #endif
     SDL_Quit();
-}
-
-void visSetObstacles(Rect *obstacles, int count)
-{
-    if (OBSTACLES != NULL) {
-        free(OBSTACLES);
-        OBSTACLES = NULL;
-    }
-    OBSTACLE_COUNT = count;
-    if (count == 0)
-        return;
-    OBSTACLES = calloc(count, sizeof(Rect));
-    memcpy(OBSTACLES, obstacles, sizeof(Rect) * count);
 }
 
 float calculateSurvivalRate(Organism* orgs)

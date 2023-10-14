@@ -50,10 +50,10 @@ int main(int argc, const char* argv[])
     sim.size = (Size) {
         .w = 128, .h = 128
     };
-    sim.energyToMove = 0.01;
+    sim.energyToMove = 0.02;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 8;
-    sim.numberOfGenes = 32;
+    sim.maxInternalNeurons = 3;
+    sim.numberOfGenes = 12;
     sim.population = 1000;
     sim.stepsPerGeneration = 150;
     sim.maxGenerations = 1000;
