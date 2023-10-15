@@ -5,11 +5,11 @@
 #include <stdio.h>
 
 // make a deep copy of the genome
-Genome copyGenome(Genome* src)
+Genome copyGenome(Genome* src, Gene* geneBuffer)
 {
     Genome dest = *src;
 
-    dest.genes = calloc(src->count, sizeof(Gene));
+    dest.genes = geneBuffer;
     memcpy(dest.genes, src->genes, sizeof(Gene) * src->count);
 
     return dest;
@@ -96,9 +96,9 @@ uint32_t rand_uint32(void)
     return (uint32_t)((uint16_t)(rand()) << 16) | (uint16_t)rand();
 }
 
-Genome makeRandomGenome(uint8_t numGenes)
+Genome makeRandomGenome(uint8_t numGenes, Gene* geneBuffer)
 {
-    Genome genome = {.count = numGenes, .genes = calloc(numGenes, sizeof(Gene))};
+    Genome genome = {.count = numGenes, .genes = geneBuffer};
 
     for (int i = 0; i < numGenes; i++) {
         genome.genes[i] = intToGene(rand_uint32());
@@ -107,12 +107,12 @@ Genome makeRandomGenome(uint8_t numGenes)
     return genome;
 }
 
-Genome reproduce(Genome *a, Genome *b)
+Genome reproduce(Genome *a, Genome *b, Gene* geneBuffer)
 {
     int largerCount = a->count > b->count ? a->count : b->count;
 
     Genome genome = {.count = largerCount,
-                     .genes = calloc(largerCount, sizeof(Gene))
+                     .genes = geneBuffer
                     };
 
     for (int i = 0; i < largerCount; i++) {

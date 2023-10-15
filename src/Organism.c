@@ -26,7 +26,7 @@ static char *OutputTypeStrings[OUT_MAX] = {
     "TURN_LEFT_RIGHT", "TURN_RANDOM"
 };
 
-Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
+Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer, Gene* geneBuffer)
 {
     Organism org = {
         .pos =
@@ -41,7 +41,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
         .direction = getRandomDirection()
     };
 
-    org.genome = mutateGenome(reproduce(&a->genome, &b->genome), sim->mutationRate, &org.mutated);
+    org.genome = mutateGenome(reproduce(&a->genome, &b->genome, geneBuffer), sim->mutationRate, &org.mutated);
 
     while (getOrganismByPos(org.pos, sim, orgsByPosition, false) != NULL ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
@@ -59,7 +59,6 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
 void destroyOrganism(Organism *org)
 {
     destroyNeuralNet(&org->net);
-    free(org->genome.genes);
     org->genome.genes = NULL;
     org->genome.count = 0;
 }
@@ -416,11 +415,11 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOr
     handleCollisions(org, sim, orgsByPosition, prevOrgsByPosition);
 }
 
-Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
+Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer, Gene* geneBuffer)
 {
     Organism org = {
         .pos = (Pos){.x = rand() % sim->size.w, .y = rand() % sim->size.h},
-        .genome = makeRandomGenome(sim->numberOfGenes),
+        .genome = makeRandomGenome(sim->numberOfGenes, geneBuffer),
         .alive = true,
         .didCollide = false,
         .energyLevel = 1.0,
@@ -440,11 +439,11 @@ Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition, Neuron* 
 }
 
 /// Makes a deep copy of the organism; this new Organism will need to be destroyed independently of its original.
-Organism copyOrganism(Organism *src, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
+Organism copyOrganism(Organism *src, Neuron* neuronBuffer, NeuralConnection* connectionBuffer, Gene* geneBuffer)
 {
     Organism dest = *src;
 
-    dest.genome = copyGenome(&src->genome);
+    dest.genome = copyGenome(&src->genome, geneBuffer);
     dest.net = copyNeuralNet(&src->net, neuronBuffer, connectionBuffer);
 
     return dest;

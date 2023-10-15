@@ -52,8 +52,10 @@ static Organism* drawableOrgsRead;
 static volatile Organism* drawableOrgsWrite;
 static volatile Neuron* neuronBackBuffer;
 static volatile NeuralConnection * connectionBackBuffer;
+static volatile Gene* geneBackBuffer;
 static Neuron* neuronFrontBuffer;
 static NeuralConnection * connectionFrontBuffer;
+static Gene* geneFrontBuffer;
 static volatile bool drawableOrgsStepChanged;
 static volatile bool drawableOrgsGenerationChanged;
 static volatile bool drawableOrgsWriteablePopulated;
@@ -144,9 +146,11 @@ void visInit(uint32_t w, uint32_t h)
 
     neuronBackBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
     connectionBackBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
+    geneBackBuffer = calloc(sim->numberOfGenes * sim->population, sizeof(Gene));
 
     neuronFrontBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
     connectionFrontBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
+    geneFrontBuffer = calloc(sim->numberOfGenes * sim->population, sizeof(Gene));
     
     visDrawShell();
     SDL_RenderPresent(renderer);
@@ -375,7 +379,7 @@ void copyBackbufferToFrontBuffer(void)
 
     for (int i = 0; i < sim->population; i++) {
         destroyOrganism(&drawableOrgsRead[i]);
-        drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i], &neuronFrontBuffer[i * MAX_NEURONS], &connectionFrontBuffer[i * MAX_CONNECTIONS]);
+        drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i], &neuronFrontBuffer[i * MAX_NEURONS], &connectionFrontBuffer[i * MAX_CONNECTIONS], &geneFrontBuffer[i * sim->numberOfGenes]);
     }
     drawableOrgsGenerationChanged = false;
     drawableOrgsStepChanged = false;
@@ -469,6 +473,12 @@ void visDestroy(void)
     free((void*)connectionBackBuffer);
     connectionBackBuffer = NULL;
 
+    free((void*)geneBackBuffer);
+    geneBackBuffer = NULL;
+
+    free((void*)geneFrontBuffer);
+    geneFrontBuffer = NULL;
+
     free(neuronFrontBuffer);
     neuronFrontBuffer = NULL;
 
@@ -525,7 +535,7 @@ void copyOrganismsToBackbuffer(Organism* orgs)
     }
 
     for (int i = 0; i < sim->population; i++) {
-        drawableOrgsWrite[i] = copyOrganism(&orgs[i], (Neuron*)&neuronBackBuffer[i * MAX_NEURONS], (NeuralConnection*)&connectionBackBuffer[i * MAX_CONNECTIONS]);
+        drawableOrgsWrite[i] = copyOrganism(&orgs[i], (Neuron*)&neuronBackBuffer[i * MAX_NEURONS], (NeuralConnection*)&connectionBackBuffer[i * MAX_CONNECTIONS], (Gene*)&geneBackBuffer[i * sim->numberOfGenes]);
     }
 
     drawableOrgsWriteablePopulated = true;

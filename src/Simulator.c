@@ -103,12 +103,14 @@ void runSimulation(Simulation *s)
 
     NeuralConnection *connectionBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
     Neuron* neuronBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
+    Gene* geneBuffer = calloc(sim->numberOfGenes * sim->population, sizeof(Gene));
 
     NeuralConnection *nextConnectionBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
     Neuron* nextNeuronBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
+    Gene* nextGeneBuffer = calloc(sim->numberOfGenes * sim->population, sizeof(Gene));
 
     for (int i = 0; i < sim->population; i++) {
-        orgs[i] = makeRandomOrganism(sim, orgsByPosition, &neuronBuffer[i * MAX_NEURONS], &connectionBuffer[i * MAX_CONNECTIONS]);
+        orgs[i] = makeRandomOrganism(sim, orgsByPosition, &neuronBuffer[i * MAX_NEURONS], &connectionBuffer[i * MAX_CONNECTIONS], &geneBuffer[i * sim->numberOfGenes]);
         orgs[i].id = i;
     }
 
@@ -234,7 +236,7 @@ void runSimulation(Simulation *s)
         for (int i = 0; i < sim->population; i++) {
             Organism *a, *b;
             findMates(orgs, sim->population, &a, &b);
-            nextGenOrgs[i] = makeOffspring(a, b, sim, orgsByPosition, &nextNeuronBuffer[i * MAX_NEURONS], &nextConnectionBuffer[i * MAX_CONNECTIONS]);
+            nextGenOrgs[i] = makeOffspring(a, b, sim, orgsByPosition, &nextNeuronBuffer[i * MAX_NEURONS], &nextConnectionBuffer[i * MAX_CONNECTIONS], &nextGeneBuffer[i * sim->numberOfGenes]);
             nextGenOrgs[i].id = i;
         }
 
@@ -253,6 +255,10 @@ void runSimulation(Simulation *s)
         tmp = connectionBuffer;
         connectionBuffer = nextConnectionBuffer;
         nextConnectionBuffer = tmp;
+
+        tmp = geneBuffer;
+        geneBuffer = nextGeneBuffer;
+        nextGeneBuffer = tmp;
 
         if (interrupted || survivors <= 1)
             goto quitOuterLoop;
@@ -284,4 +290,6 @@ quitOuterLoop:
     free(nextNeuronBuffer);
     free(connectionBuffer);
     free(nextConnectionBuffer);
+    free(geneBuffer);
+    free(nextGeneBuffer);
 }

@@ -3,9 +3,9 @@
 
 #include "Common.h"
 
-Genome copyGenome(Genome* src);
-Genome makeRandomGenome(uint8_t numGenes);
+Genome copyGenome(Genome* src, Gene* geneBuffer);
+Genome makeRandomGenome(uint8_t numGenes, Gene* geneBuffer);
 Genome mutateGenome(Genome genome, float mutationRate, bool* didMutate);
-Genome reproduce(Genome *a, Genome *b);
+Genome reproduce(Genome *a, Genome *b, Gene* geneBuffer);
 
 #endif
