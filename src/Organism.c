@@ -26,7 +26,7 @@ static char *OutputTypeStrings[OUT_MAX] = {
     "TURN_LEFT_RIGHT", "TURN_RANDOM"
 };
 
-Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition)
+Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
 {
     Organism org = {
         .pos =
@@ -49,7 +49,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
         org.pos.y = rand() % sim->size.h;
     }
 
-    org.net = buildNeuralNet(&org.genome, sim);
+    org.net = buildNeuralNet(&org.genome, sim, neuronBuffer, connectionBuffer);
     org.parentA = a->id;
     org.parentB = b->id;
 
@@ -416,7 +416,7 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOr
     handleCollisions(org, sim, orgsByPosition, prevOrgsByPosition);
 }
 
-Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
+Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
 {
     Organism org = {
         .pos = (Pos){.x = rand() % sim->size.w, .y = rand() % sim->size.h},
@@ -434,18 +434,18 @@ Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition)
         org.pos.y = rand() % sim->size.h;
     }
 
-    org.net = buildNeuralNet(&org.genome, sim);
+    org.net = buildNeuralNet(&org.genome, sim, neuronBuffer, connectionBuffer);
 
     return org;
 }
 
 /// Makes a deep copy of the organism; this new Organism will need to be destroyed independently of its original.
-Organism copyOrganism(Organism *src)
+Organism copyOrganism(Organism *src, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
 {
     Organism dest = *src;
 
     dest.genome = copyGenome(&src->genome);
-    dest.net = copyNeuralNet(&src->net);
+    dest.net = copyNeuralNet(&src->net, neuronBuffer, connectionBuffer);
 
     return dest;
 }

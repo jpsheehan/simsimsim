@@ -11,6 +11,9 @@
 #define OUT_BASE 0x4000
 #define INTERNAL_BASE 0x200
 
+#define MAX_NEURONS 128
+#define MAX_CONNECTIONS 128
+
 typedef enum {
     DIR_N,
     DIR_NE,

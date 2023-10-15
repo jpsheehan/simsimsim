@@ -50,6 +50,10 @@ static Simulation *sim;
 
 static Organism* drawableOrgsRead;
 static volatile Organism* drawableOrgsWrite;
+static volatile Neuron* neuronBackBuffer;
+static volatile NeuralConnection * connectionBackBuffer;
+static Neuron* neuronFrontBuffer;
+static NeuralConnection * connectionFrontBuffer;
 static volatile bool drawableOrgsStepChanged;
 static volatile bool drawableOrgsGenerationChanged;
 static volatile bool drawableOrgsWriteablePopulated;
@@ -138,6 +142,12 @@ void visInit(uint32_t w, uint32_t h)
     graphPos.y += 65;
     survivalRatesEachStep = createLineGraph(sim->stepsPerGeneration, (SDL_Color){.r = 255, .g = 0, .b = 0, .a = 255 }, graphPos, graphSize);
 
+    neuronBackBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
+    connectionBackBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
+
+    neuronFrontBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
+    connectionFrontBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
+    
     visDrawShell();
     SDL_RenderPresent(renderer);
 }
@@ -365,7 +375,7 @@ void copyBackbufferToFrontBuffer(void)
 
     for (int i = 0; i < sim->population; i++) {
         destroyOrganism(&drawableOrgsRead[i]);
-        drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i]);
+        drawableOrgsRead[i] = copyOrganism((Organism*)&drawableOrgsWrite[i], &neuronFrontBuffer[i * MAX_NEURONS], &connectionFrontBuffer[i * MAX_CONNECTIONS]);
     }
     drawableOrgsGenerationChanged = false;
     drawableOrgsStepChanged = false;
@@ -453,6 +463,18 @@ void visDestroy(void)
     destroyLineGraph(&survivalRatesEachGeneration);
     destroyLineGraph(&survivalRatesEachStep);
 
+    free((void*)neuronBackBuffer);
+    neuronBackBuffer = NULL;
+
+    free((void*)connectionBackBuffer);
+    connectionBackBuffer = NULL;
+
+    free(neuronFrontBuffer);
+    neuronFrontBuffer = NULL;
+
+    free(connectionFrontBuffer);
+    connectionFrontBuffer = NULL;
+
     SDL_FreeSurface(fileSurface);
     fileSurface = NULL;
 
@@ -494,7 +516,6 @@ float calculateSurvivalRate(Organism* orgs)
 
 void copyOrganismsToBackbuffer(Organism* orgs)
 {
-
     sem_wait(&drawableOrgsLock);
 
     if (drawableOrgsWriteablePopulated) {
@@ -504,7 +525,7 @@ void copyOrganismsToBackbuffer(Organism* orgs)
     }
 
     for (int i = 0; i < sim->population; i++) {
-        drawableOrgsWrite[i] = copyOrganism(&orgs[i]);
+        drawableOrgsWrite[i] = copyOrganism(&orgs[i], (Neuron*)&neuronBackBuffer[i * MAX_NEURONS], (NeuralConnection*)&connectionBackBuffer[i * MAX_CONNECTIONS]);
     }
 
     drawableOrgsWriteablePopulated = true;

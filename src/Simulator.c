@@ -101,8 +101,14 @@ void runSimulation(Simulation *s)
     Organism **orgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
     Organism **prevOrgsByPosition = calloc(sim->size.w * sim->size.h, sizeof(Organism*));
 
+    NeuralConnection *connectionBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
+    Neuron* neuronBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
+
+    NeuralConnection *nextConnectionBuffer = calloc(MAX_CONNECTIONS * sim->population, sizeof(NeuralConnection));
+    Neuron* nextNeuronBuffer = calloc(MAX_NEURONS * sim->population, sizeof(Neuron));
+
     for (int i = 0; i < sim->population; i++) {
-        orgs[i] = makeRandomOrganism(sim, orgsByPosition);
+        orgs[i] = makeRandomOrganism(sim, orgsByPosition, &neuronBuffer[i * MAX_NEURONS], &connectionBuffer[i * MAX_CONNECTIONS]);
         orgs[i].id = i;
     }
 
@@ -228,7 +234,7 @@ void runSimulation(Simulation *s)
         for (int i = 0; i < sim->population; i++) {
             Organism *a, *b;
             findMates(orgs, sim->population, &a, &b);
-            nextGenOrgs[i] = makeOffspring(a, b, sim, orgsByPosition);
+            nextGenOrgs[i] = makeOffspring(a, b, sim, orgsByPosition, &nextNeuronBuffer[i * MAX_NEURONS], &nextConnectionBuffer[i * MAX_CONNECTIONS]);
             nextGenOrgs[i].id = i;
         }
 
@@ -236,9 +242,17 @@ void runSimulation(Simulation *s)
             destroyOrganism(&orgs[i]);
         }
 
-        Organism* tmp = orgs;
+        void* tmp = orgs;
         orgs = nextGenOrgs;
         nextGenOrgs = tmp;
+
+        tmp = neuronBuffer;
+        neuronBuffer = nextNeuronBuffer;
+        nextNeuronBuffer = tmp;
+
+        tmp = connectionBuffer;
+        connectionBuffer = nextConnectionBuffer;
+        nextConnectionBuffer = tmp;
 
         if (interrupted || survivors <= 1)
             goto quitOuterLoop;
@@ -265,4 +279,9 @@ quitOuterLoop:
     free(nextGenOrgs);
     free(orgsByPosition);
     free(prevOrgsByPosition);
+
+    free(neuronBuffer);
+    free(nextNeuronBuffer);
+    free(connectionBuffer);
+    free(nextConnectionBuffer);
 }

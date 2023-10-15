@@ -13,12 +13,9 @@ Neuron *findNeuronById(Neuron* neurons, size_t neuronCount, uint16_t id)
     return NULL;
 }
 
-NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
+NeuralNet buildNeuralNet(Genome *genome, Simulation* sim, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
 {
-    Neuron neurons[128] = {0};
     uint8_t usedNeurons = 0;
-
-    NeuralConnection connections[128] = {0};
     uint8_t usedConnections = 0;
 
     for (int i = 0; i < genome->count; i++) {
@@ -42,9 +39,9 @@ NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
             sinkId |= INTERNAL_BASE;
         }
 
-        Neuron *source = findNeuronById(neurons, usedNeurons, sourceId);
+        Neuron *source = findNeuronById(neuronBuffer, usedNeurons, sourceId);
         if (source == NULL) {
-            source = &neurons[usedNeurons++];
+            source = &neuronBuffer[usedNeurons++];
             source->id = sourceId;
             source->type = gene->sourceIsInput ? NEURON_INPUT : NEURON_INTERNAL;
             source->state = 0.0f;
@@ -56,9 +53,9 @@ NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
             source->outputs++;
         }
 
-        Neuron *sink = findNeuronById(neurons, usedNeurons, sinkId);
+        Neuron *sink = findNeuronById(neuronBuffer, usedNeurons, sinkId);
         if (sink == NULL) {
-            sink = &neurons[usedNeurons++];
+            sink = &neuronBuffer[usedNeurons++];
             sink->id = sinkId;
             sink->type = gene->sinkIsOutput ? NEURON_OUTPUT : NEURON_INTERNAL;
             sink->state = 0.0f;
@@ -70,7 +67,7 @@ NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
             sink->inputs++;
         }
 
-        NeuralConnection *conn = &connections[usedConnections++];
+        NeuralConnection *conn = &connectionBuffer[usedConnections++];
         conn->sourceId = source->id;
         conn->sinkId = sink->id;
         conn->weight =
@@ -81,21 +78,16 @@ NeuralNet buildNeuralNet(Genome *genome, Simulation* sim)
     NeuralNet net;
 
     net.connectionCount = usedConnections;
-    net.connections = calloc(usedConnections, sizeof(NeuralConnection));
-    memcpy(net.connections, connections,
-           usedConnections * sizeof(NeuralConnection));
+    net.connections = connectionBuffer;
 
     net.neuronCount = usedNeurons;
-    net.neurons = calloc(usedNeurons, sizeof(Neuron));
-    memcpy(net.neurons, neurons, usedNeurons * sizeof(Neuron));
+    net.neurons = neuronBuffer;
 
     return net;
 }
 
 void destroyNeuralNet(NeuralNet *net)
 {
-    free(net->connections);
-    free(net->neurons);
     net->connections = NULL;
     net->neurons = NULL;
     net->connectionCount = 0;
@@ -103,14 +95,14 @@ void destroyNeuralNet(NeuralNet *net)
 }
 
 // make a deep copy of the neural net
-NeuralNet copyNeuralNet(NeuralNet* src)
+NeuralNet copyNeuralNet(NeuralNet* src, Neuron* neuronBuffer, NeuralConnection* connectionBuffer)
 {
     NeuralNet dest = *src;
 
-    dest.connections = calloc(src->connectionCount, sizeof(NeuralConnection));
+    dest.connections = connectionBuffer;
     memcpy(dest.connections, src->connections, src->connectionCount * sizeof(NeuralConnection));
 
-    dest.neurons = calloc(src->neuronCount, sizeof(Neuron));
+    dest.neurons = neuronBuffer;
     memcpy(dest.neurons, src->neurons, src->neuronCount * sizeof(Neuron));
 
     return dest;
