@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "Features.h"
+#include "SimFeatures.h"
 
 #define IN_BASE 0x8000
 #define OUT_BASE 0x4000
@@ -34,6 +34,7 @@ typedef enum {
     IN_ENERGY,
     IN_VISION_FORWARD,
     IN_PROXIMITY_TO_NEAREST_EDGE,
+    IN_PROXIMITY_TO_ORIGIN,
     IN_MAX
 } InputType;
 

@@ -1,5 +1,5 @@
-#ifndef Features_h
-#define Features_h
+#ifndef SimFeatures_h
+#define SimFeatures_h
 
 #include <stdbool.h>
 

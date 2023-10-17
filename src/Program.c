@@ -3,7 +3,7 @@
 #include <time.h>
 #include <locale.h>
 
-#include "Features.h"
+#include "SimFeatures.h"
 
 #if FEATURE_VISUALISER
 #include <pthread.h>
@@ -43,8 +43,8 @@ int main(int argc, const char* argv[])
         (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
     };
 
-    sim.selector = circleCenterSelector;
-    sim.mutationRate = 0.01;
+    sim.selector = donutSelector;
+    sim.mutationRate = 0.05;
     sim.obstacles = obstacles;
     sim.obstaclesCount = 0;
     sim.size = (Size) {
@@ -52,11 +52,11 @@ int main(int argc, const char* argv[])
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 3;
+    sim.maxInternalNeurons = 2;
     sim.numberOfGenes = 12;
     sim.population = 1000;
-    sim.stepsPerGeneration = 150;
-    sim.maxGenerations = 1000;
+    sim.stepsPerGeneration = 200;
+    sim.maxGenerations = 100000;
 
 #if FEATURE_VISUALISER
     sem_init(&simulatorReadyLock, 0, 0);

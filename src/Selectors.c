@@ -41,7 +41,7 @@ bool circleCenterSelectorFn(Organism* org, Simulation *sim)
 {
     return
         ((sim->size.w / 2 - org->pos.x) * (sim->size.w / 2 - org->pos.x) +
-         (sim->size.h / 2 - org->pos.y) * (sim->size.h / 2 - org->pos.y)) < (16 * 16);
+         (sim->size.h / 2 - org->pos.y) * (sim->size.h / 2 - org->pos.y)) < (20 * 20);
 }
 
 const char circleCenterSelectorName[] = "Center (Circle)";
@@ -50,6 +50,38 @@ SelectionCriteria circleCenterSelector = {
     .fn = circleCenterSelectorFn,
     .name = circleCenterSelectorName,
 };
+
+bool hollowCircleSelectorFn(Organism* org, Simulation *sim)
+{
+    return
+        ((sim->size.w / 2 - org->pos.x) * (sim->size.w / 2 - org->pos.x) +
+         (sim->size.h / 2 - org->pos.y) * (sim->size.h / 2 - org->pos.y)) > (60 * 60);
+}
+
+const char hollowCircleSelectorName[] = "Hollow Circle";
+
+SelectionCriteria hollowCircleSelector = {
+    .fn = hollowCircleSelectorFn,
+    .name = hollowCircleSelectorName,
+};
+
+
+bool donutSelectorFn(Organism* org, Simulation *sim)
+{
+    return
+        (((sim->size.w / 2 - org->pos.x) * (sim->size.w / 2 - org->pos.x) +
+         (sim->size.h / 2 - org->pos.y) * (sim->size.h / 2 - org->pos.y)) < (32 * 32)) &&
+        ((sim->size.w / 2 - org->pos.x) * (sim->size.w / 2 - org->pos.x) +
+         (sim->size.h / 2 - org->pos.y) * (sim->size.h / 2 - org->pos.y)) > (24 * 24);
+}
+
+const char donutSelectorName[] = "Donut";
+
+SelectionCriteria donutSelector = {
+    .fn = donutSelectorFn,
+    .name = donutSelectorName,
+};
+
 
 bool bottomHalfSelectorFn(Organism *org, Simulation *sim)
 {

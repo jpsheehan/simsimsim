@@ -1,4 +1,5 @@
-#include "Features.h"
+#include "SDL_render.h"
+#include "SimFeatures.h"
 #include "Common.h"
 
 #if FEATURE_VISUALISER
@@ -404,41 +405,47 @@ void visDrawStep(void)
     visDrawShell();
 
     if (drawableOrgsReadablePopulated) {
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        // SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         for (int i = 0; i < sim->population; i++) {
             Organism *org = &drawableOrgsRead[i];
             SDL_Color color = getOrganismBaseColor(org);
 
             setRenderDrawColor(color);
-            SDL_RenderDrawPoint(renderer, paddingLeft + SIM_SCALE * org->pos.x + 1, paddingTop + SIM_SCALE * org->pos.y + 1);
+            SDL_RenderFillRect(renderer, &(SDL_Rect){
+                .x = paddingLeft + SIM_SCALE * org->pos.x,
+                .y = paddingTop + SIM_SCALE * org->pos.y,
+                .w = SIM_SCALE,
+                .h = SIM_SCALE
+            });
+            // SDL_RenderDrawPoint(renderer, paddingLeft + SIM_SCALE * org->pos.x + 1, paddingTop + SIM_SCALE * org->pos.y + 1);
 
-            SDL_Point fullPoints[4] = {
-                (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y},
-                (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y + 2},
-                (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
-                (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
-            };
-            color.a = 128;
-            setRenderDrawColor(color);
-            SDL_RenderDrawPoints(renderer, fullPoints, 4);
+            // SDL_Point fullPoints[4] = {
+            //     (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y},
+            //     (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 1, .y = paddingTop + SIM_SCALE * org->pos.y + 2},
+            //     (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
+            //     (SDL_Point){.x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y + 1},
+            // };
+            // color.a = 128;
+            // setRenderDrawColor(color);
+            // SDL_RenderDrawPoints(renderer, fullPoints, 4);
 
-            fullPoints[0] = (SDL_Point) {
-                .x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y
-            };
-            fullPoints[1] = (SDL_Point) {
-                .x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y + 2
-            };
-            fullPoints[2] = (SDL_Point) {
-                .x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y + 2
-            };
-            fullPoints[3] = (SDL_Point) {
-                .x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y
-            };
-            color.a = 32;
-            setRenderDrawColor(color);
-            SDL_RenderDrawPoints(renderer, fullPoints, 4);
+            // fullPoints[0] = (SDL_Point) {
+            //     .x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y
+            // };
+            // fullPoints[1] = (SDL_Point) {
+            //     .x = paddingLeft + SIM_SCALE * org->pos.x, .y = paddingTop + SIM_SCALE * org->pos.y + 2
+            // };
+            // fullPoints[2] = (SDL_Point) {
+            //     .x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y + 2
+            // };
+            // fullPoints[3] = (SDL_Point) {
+            //     .x = paddingLeft + SIM_SCALE * org->pos.x + 2, .y = paddingTop + SIM_SCALE * org->pos.y
+            // };
+            // color.a = 32;
+            // setRenderDrawColor(color);
+            // SDL_RenderDrawPoints(renderer, fullPoints, 4);
         }
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        // SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 
     SDL_RenderPresent(renderer);

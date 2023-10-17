@@ -21,6 +21,9 @@ extern SelectionCriteria farBottomSelector;
 extern SelectionCriteria farTopOrBottomSelector;
 extern SelectionCriteria farLeftOrRightSelector;
 
+extern SelectionCriteria hollowCircleSelector;
+extern SelectionCriteria donutSelector;
+
 // bool farLeftSelector(Organism *org, Simulation *sim);
 // bool farRightSelector(Organism *org, Simulation *sim);
 

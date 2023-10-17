@@ -8,7 +8,7 @@
 #include <time.h>
 #include <semaphore.h>
 
-#include "Features.h"
+#include "SimFeatures.h"
 #include "Common.h"
 #include "Simulator.h"
 #include "Visualiser.h"

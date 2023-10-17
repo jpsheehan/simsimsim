@@ -229,10 +229,18 @@ void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism
                             : 1.0f - 2.0f * (float)nearY / sim->size.h);
         }
         break;
+        case IN_PROXIMITY_TO_ORIGIN: {
+            int diffX = abs(sim->size.w / 2 - org->pos.x);
+            int diffY = abs(sim->size.h / 2 - org->pos.y);
+            float length = sqrtf(diffX * diffX + diffY * diffY);
+
+            input->state = length / (sim->size.w * sim->size.h);
+        }
+        break;
         }
 
         if (fabs(input->state) > 1.0f)
-            printf("Overexcited neuron #%d to level %.2f\n", input->id, input->state);
+            printf("Warning: Overexcited neuron #%d to level %.2f\n", input->id, input->state);
     }
 }
 
