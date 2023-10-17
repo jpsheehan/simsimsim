@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -43,7 +44,7 @@ Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **org
 
     org.genome = mutateGenome(reproduce(&a->genome, &b->genome, geneBuffer), sim->mutationRate, &org.mutated);
 
-    while (getOrganismByPos(org.pos, sim, orgsByPosition, false) != NULL ||
+    while (getOrganismByPos(org.pos, sim, orgsByPosition, org.id) != NULL ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
         org.pos.x = rand() % sim->size.w;
         org.pos.y = rand() % sim->size.h;
@@ -129,8 +130,7 @@ bool inRange(int minInclusive, int x, int maxExclusive)
     return x >= minInclusive && x < maxExclusive;
 }
 
-Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
-                           bool aliveOnly)
+Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition, OrganismId ignoreId)
 {
     if (!inRange(0, pos.x, sim->size.w) ||
             !inRange(0, pos.y, sim->size.h)) {
@@ -139,21 +139,24 @@ Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism** orgsByPosition,
 
     Organism* org = orgsByPosition[pos.y * sim->size.w + pos.x];
 
-    if (org == NULL) {
+    if (org == NULL || org->id == ignoreId) {
         return NULL;
     }
 
-    if ((aliveOnly && org->alive) || !aliveOnly) {
-        return org;
-    }
-
-    return NULL;
+    return org;
 }
 
 // Sets the organism's position in the LUT if it is alive.
 void setOrganismByPosition(Simulation* sim, Organism** orgsByPosition, Organism* org)
 {
     if (!org->alive) return;
+
+    // if (getOrganismByPos(org->pos, sim, orgsByPosition, org->id)) {
+    //     printf("Found duplicate entry at (%d, %d) for Org %d!!!\n", org->pos.x, org->pos.y, org->id);
+    //     exit(1);
+    // }
+
+    // printf("Set position at (%d, %d) for Org %d!!!\n", org->pos.x, org->pos.y, org->id);
 
     orgsByPosition[sim->size.w * org->pos.y + org->pos.x] = org;
 }
@@ -216,7 +219,7 @@ void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism
             // outputs should operate on the new state
             if (getOrganismByPos(
                         addPos(org->pos, moveInDirection(org->pos, org->direction)),
-                        sim, prevOrgsByPosition, true)) {
+                        sim, prevOrgsByPosition, org->id)) {
                 input->state = 1.0f;
             } else {
                 input->state = 0.0f;
@@ -364,42 +367,29 @@ void performNeuronOutputs(Organism* org, Pos originalPosition, Organism** orgsBy
         org->alive = false;
         org->energyLevel = 0.0f;
         org->pos = originalPosition;
-        setOrganismByPosition(sim, orgsByPosition, org);
-    } else if (org->energyLevel > 1.0f) {
-        org->energyLevel = 1.0f;
-    }
-}
+        return;
+    } else if (didMove) {
+        organismMoveBackIntoZone(org, sim);
 
-void handleCollisions(Organism* org, Simulation* sim, Organism** orgsByPosition, Organism** prevOrgsByPosition)
-{
-    // collisions
-    organismMoveBackIntoZone(org, sim);
-
-#if SIM_COLLISION_DEATHS
-    if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
+        if (getOrganismByPos(org->pos, sim, orgsByPosition, org->id) ||
             isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
-        org->didCollide = true;
-        org->pos = originalPosition;
-        if (getOrganismByPos(org->pos, otherOrgs, otherOrgsCount, true) ||
-                isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
-            org->alive = false;
-            setOrganismByPosition(sim, orgsByPosition, org);
-            return;
+            org->pos = originalPosition;
+
+            org->didCollide = true;
         }
     }
-#else
-    Organism* collidedOrg;
-    while ((collidedOrg = getOrganismByPos(org->pos, sim, prevOrgsByPosition, true)) ||
-            isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
-        if (collidedOrg == org) break;
-        org->didCollide = true;
-        org->pos.x += rand() % 3 - 1;
-        org->pos.y += rand() % 3 - 1;
-        organismMoveBackIntoZone(org, sim);
+
+    if (org->energyLevel > 1.0f) {
+        org->energyLevel = 1.0f;
     }
 
-    setOrganismByPosition(sim, orgsByPosition, org);
-#endif
+    if (getOrganismByPos(org->pos, sim, orgsByPosition, org->id)) {
+        org->alive = false;
+    }
+
+    if (org->alive) {
+        setOrganismByPosition(sim, orgsByPosition, org);
+    }
 }
 
 void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOrgsByPosition, Simulation* sim, int currentStep)
@@ -411,7 +401,7 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOr
 
     resetNeuronState(org);
 
-    exciteInputNeurons(sim, orgsByPosition, org, currentStep);
+    exciteInputNeurons(sim, prevOrgsByPosition, org, currentStep);
 
     computeNeuronStates(org);
 
@@ -419,8 +409,6 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOr
 
     if (!org->alive)
         return;
-
-    handleCollisions(org, sim, orgsByPosition, prevOrgsByPosition);
 }
 
 Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer, Gene* geneBuffer)
@@ -435,7 +423,7 @@ Organism makeRandomOrganism(Simulation* sim, Organism** orgsByPosition, Neuron* 
         .mutated = false,
     };
 
-    while (getOrganismByPos(org.pos, sim, orgsByPosition, false) ||
+    while (getOrganismByPos(org.pos, sim, orgsByPosition, org.id) ||
             isPosInAnyRect(org.pos, sim->obstacles, sim->obstaclesCount)) {
         org.pos.x = rand() % sim->size.w;
         org.pos.y = rand() % sim->size.h;

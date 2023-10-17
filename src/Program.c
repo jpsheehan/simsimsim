@@ -52,8 +52,8 @@ int main(int argc, const char* argv[])
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 2;
-    sim.numberOfGenes = 12;
+    sim.maxInternalNeurons = 4;
+    sim.numberOfGenes = 32;
     sim.population = 1000;
     sim.stepsPerGeneration = 200;
     sim.maxGenerations = 100000;

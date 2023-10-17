@@ -166,6 +166,26 @@ void runSimulation(Simulation *s)
                 organismRunStep(&orgs[i], orgsByPosition, prevOrgsByPosition, sim, step);
             }
 
+#if false
+            int sharedCells = 0;
+            for (int i = 0; i < sim->population; i++) {
+                Organism* org = &orgs[i];
+                if (!org->alive) continue;
+                for (int j = 0; j < sim->population; j++) {
+                    Organism* otherOrg = &orgs[j];
+                    if (!otherOrg->alive) continue;
+                    if (org->pos.x == otherOrg->pos.x &&
+                        org->pos.y == otherOrg->pos.y &&
+                        org->id != otherOrg->id) {
+                        sharedCells++;
+                    }
+                }
+            }
+            if (sharedCells > 0) {
+                printf("Found %d cells that are being shared!\n", sharedCells);
+            }
+#endif
+
             if (interrupted) goto quitOuterLoop;
         }
 

@@ -5,7 +5,7 @@
 
 Organism makeRandomOrganism(Simulation* sim, Organism **organismsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer, Gene* geneBuffer);
 Organism *getOrganismByPos(Pos pos, Simulation* sim, Organism **orgsByPosition,
-                           bool aliveOnly);
+                           OrganismId ignoreId);
 void destroyOrganism(Organism *org);
 Organism makeOffspring(Organism *a, Organism *b, Simulation* sim, Organism **orgsByPosition, Neuron* neuronBuffer, NeuralConnection* connectionBuffer, Gene* geneBuffer);
 void findMates(Organism orgs[], int population, Organism **outA,
