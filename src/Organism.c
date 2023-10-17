@@ -189,7 +189,7 @@ void resetNeuronState(Organism* org)
     }
 }
 
-void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism* org, int currentStep)
+void exciteInputNeurons(Simulation* sim, Organism** orgsByPosition, Organism* org, int currentStep)
 {
     for (int i = 0; i < org->net.neuronCount; i++) {
         Neuron *input = &org->net.neurons[i];
@@ -214,24 +214,32 @@ void exciteInputNeurons(Simulation* sim, Organism** prevOrgsByPosition, Organism
             input->state = org->energyLevel;
             break;
         case IN_VISION_FORWARD:
-            // TODO: this won't work since we need to split the organism run step into
-            // two stages... the inputs should operate on the old state and the
-            // outputs should operate on the new state
             if (getOrganismByPos(
                         addPos(org->pos, moveInDirection(org->pos, org->direction)),
-                        sim, prevOrgsByPosition, org->id)) {
+                        sim, orgsByPosition, org->id)) {
                 input->state = 1.0f;
             } else {
                 input->state = 0.0f;
             }
             break;
-        case IN_PROXIMITY_TO_NEAREST_EDGE: {
-            int nearX = sim->size.w / 2 - abs(sim->size.w / 2 - org->pos.x);
-            int nearY = sim->size.h / 2 - abs(sim->size.h / 2 - org->pos.y);
-            input->state = (nearX < nearY ? 1.0f - 2.0f * (float)nearX / sim->size.w
-                            : 1.0f - 2.0f * (float)nearY / sim->size.h);
-        }
-        break;
+        case IN_VISION_LEFT:
+            if (getOrganismByPos(
+                        addPos(org->pos, moveInDirection(org->pos, turnLeft(org->direction))),
+                        sim, orgsByPosition, org->id)) {
+                input->state = 1.0f;
+            } else {
+                input->state = 0.0f;
+            }
+            break;
+        case IN_VISION_RIGHT:
+            if (getOrganismByPos(
+                        addPos(org->pos, moveInDirection(org->pos, turnRight(org->direction))),
+                        sim, orgsByPosition, org->id)) {
+                input->state = 1.0f;
+            } else {
+                input->state = 0.0f;
+            }
+            break;
         case IN_PROXIMITY_TO_ORIGIN: {
             int diffX = abs(sim->size.w / 2 - org->pos.x);
             int diffY = abs(sim->size.h / 2 - org->pos.y);
@@ -371,10 +379,9 @@ void performNeuronOutputs(Organism* org, Pos originalPosition, Organism** orgsBy
     } else if (didMove) {
         organismMoveBackIntoZone(org, sim);
 
-        if (getOrganismByPos(org->pos, sim, orgsByPosition, org->id) ||
+        if ((getOrganismByPos(org->pos, sim, orgsByPosition, org->id) != NULL) ||
             isPosInAnyRect(org->pos, sim->obstacles, sim->obstaclesCount)) {
             org->pos = originalPosition;
-
             org->didCollide = true;
         }
     }
@@ -383,7 +390,7 @@ void performNeuronOutputs(Organism* org, Pos originalPosition, Organism** orgsBy
         org->energyLevel = 1.0f;
     }
 
-    if (getOrganismByPos(org->pos, sim, orgsByPosition, org->id)) {
+    if (getOrganismByPos(org->pos, sim, orgsByPosition, org->id) != NULL) {
         org->alive = false;
     }
 
@@ -401,7 +408,7 @@ void organismRunStep(Organism *org, Organism **orgsByPosition, Organism** prevOr
 
     resetNeuronState(org);
 
-    exciteInputNeurons(sim, prevOrgsByPosition, org, currentStep);
+    exciteInputNeurons(sim, orgsByPosition, org, currentStep);
 
     computeNeuronStates(org);
 
