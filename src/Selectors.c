@@ -107,6 +107,30 @@ SelectionCriteria topHalfSelector = {
     .name = topHalfSelectorName,
 };
 
+bool leftHalfSelectorFn(Organism* org, Simulation *sim)
+{
+    return (org->pos.x < (sim->size.h / 2));
+}
+
+const char leftHalfSelectorName[] = "Left Half";
+
+SelectionCriteria leftHalfSelector = {
+    .fn = leftHalfSelectorFn,
+    .name = leftHalfSelectorName,
+};
+
+bool rightHalfSelectorFn(Organism* org, Simulation *sim)
+{
+    return (org->pos.x > (sim->size.h / 2));
+}
+
+const char rightHalfSelectorName[] = "Right Half";
+
+SelectionCriteria rightHalfSelector = {
+    .fn = rightHalfSelectorFn,
+    .name = rightHalfSelectorName,
+};
+
 bool farLeftSelectorFn(Organism *org, Simulation *sim)
 {
     return org->pos.x < sim->size.w * 0.2;

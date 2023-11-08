@@ -43,7 +43,7 @@ int main(int argc, const char* argv[])
         (Rect){.x = 94, .y = 48, .w = 2, .h = 32},
     };
 
-    sim.selector = donutSelector;
+    sim.selector = leftHalfSelector;
     sim.mutationRate = 0.05;
     sim.obstacles = obstacles;
     sim.obstaclesCount = 0;
@@ -52,11 +52,11 @@ int main(int argc, const char* argv[])
     };
     sim.energyToMove = 0.01;
     sim.energyToRest = 0.01;
-    sim.maxInternalNeurons = 2;
-    sim.numberOfGenes = 12;
+    sim.maxInternalNeurons = 1;
+    sim.numberOfGenes = 2;
     sim.population = 1000;
     sim.stepsPerGeneration = 200;
-    sim.maxGenerations = 100000;
+    sim.maxGenerations = 100;
 
 #if FEATURE_VISUALISER
     sem_init(&simulatorReadyLock, 0, 0);
